@@ -4,11 +4,6 @@
 source ./tcl_scripts/scheduling/mobility.tcl
 
 proc list_mlac {res_info} {
-    set filename "output.txt"
-    set fp [open $filename "w"]
-    set data "ciao"
-    puts -nonewline $fp $data
-
     # RETURN PARAMETER
     # list of node and assign start time: <node, start_time>
     set node_start_time [list]
@@ -52,7 +47,11 @@ proc list_mlac {res_info} {
 
     # print all possible group created
     foreach cell $operations {
-        puts $cell
+        foreach fu [lindex $cell 1] {
+            set op [lindex $cell 0]
+            set delay_fu [get_attribute $fu delay]
+            puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu"
+        }
     }
 
     set done 1
@@ -68,8 +67,8 @@ proc list_mlac {res_info} {
             set nodes_to_schedule [list]
             set node_and_mobility [list]
 
-            puts "*****"
-            puts "OPERATION: $operation"
+            # puts "*****"
+            # puts "OPERATION: $operation"
 
             ##########################################################################
             ### TO DO check if, when some node can't be scheduled, for can carry on ##       
@@ -116,12 +115,12 @@ proc list_mlac {res_info} {
                 lappend node_and_mobility $app
             }
             set node_and_mobility [lsort -index 1 -integer $node_and_mobility]
-            puts "node: $node_and_mobility"
+            # puts "node: $node_and_mobility"
 
             # check avaiable resources
             set avaiable_resources [lindex $resources_cnt $latency]
             if { [string length $avaiable_resources] == 0} {
-                puts "Allocate new"
+                # puts "Allocate new"
                 lappend resources_cnt $res_info
                 set avaiable_resources [lindex $resources_cnt $latency]
             }
@@ -135,14 +134,14 @@ proc list_mlac {res_info} {
                 set position [lsearch -index 0 $avaiable_resources $fu] ; # position of fu
                 set occurency [lindex [lindex $avaiable_resources $position] 1] ; # occurency of fu
                 set fu_delay [get_attribute $fu delay]
-                puts "FU:$fus - LATENCY: $latency - DELAY: $fu_delay - OCC.: $occurency"
+                # puts "FU:$fus - LATENCY: $latency - DELAY: $fu_delay - OCC.: $occurency"
 
                 # iterate untile more that zero occurency are avaiable
                 while { $occurency > 0 } {
                     
                     # schedule node starting from lower mobility
                     set node_to_schedule [lindex [lindex $node_and_mobility 0] 0]
-                    puts "node to schedule $node_to_schedule"
+                    # puts "node to schedule $node_to_schedule"
                     # puts "node and mobility before: $node_and_mobility"
                     set node_and_mobility [lreplace $node_and_mobility 0 0]
                     # puts "node and mobility after: $node_and_mobility"
@@ -169,7 +168,7 @@ proc list_mlac {res_info} {
                         # check avaiable resources
                         set avaiable_resources_1 [lindex $resources_cnt $time]
                         if { [string length $avaiable_resources_1] == 0} {
-                            puts "allocate new for future"
+                            # puts "allocate new for future"
                             lappend resources_cnt $res_info
                             # set avaiable_resources_1 [lindex $resources_cnt $time]
                             set avaiable_resources_1 $res_info
@@ -182,7 +181,7 @@ proc list_mlac {res_info} {
                         lappend app $fu
                         lappend app $occurency_future
                         set avaiable_resources_1 [lreplace $avaiable_resources_1 $position $position $app]
-                        puts "after res. av.(time $time): $avaiable_resources_1"
+                        # puts "after res. av.(time $time): $avaiable_resources_1"
                         set resources_cnt [lreplace $resources_cnt $time $time $avaiable_resources_1]
 
                         incr i 1
