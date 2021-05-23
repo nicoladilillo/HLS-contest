@@ -5,7 +5,7 @@ proc alap {lambda} {
     foreach node [lreverse [get_sorted_nodes]] {
         # get delay of node that we re considering
         set op [get_attribute $node operation]
-        set fu [get_lib_fu_from_op $op]
+        set fu [lindex [get_lib_fus_from_op $op] end]
         set delay [get_attribute $fu delay]
 
         set start_time [expr $lambda - $delay]

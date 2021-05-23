@@ -17,10 +17,13 @@ proc list_mlac {res_info} {
     set  all_nodes [get_sorted_nodes] 
     # use to see amount of resources avaiable
     set resources_cnt [list]
+
+    # PREEPARING PHASE
+
     # mobility for each node
     set nodes_mobility [mobility]
 
-    #group fus for operation
+    # group fus for operation
     set operations [list]
     foreach operation $res_info {
         set operation [lindex $operation 0]
@@ -59,7 +62,7 @@ proc list_mlac {res_info} {
     while {$done} {
         foreach opeation_group $operations {
 
-            # LOOKINF FOR NODE TAHT CAN BE SCHEDULED WITH THIS OPERATION
+            # LOOKINF FOR NODE THAT CAN BE SCHEDULED WITH THIS OPERATION
 
             # starting at each cycle
             set operation [lindex $opeation_group 0]
@@ -91,7 +94,7 @@ proc list_mlac {res_info} {
                             set parent_delay [get_attribute [lindex [lindex $node_fu $position] 1] delay] ; # get delay parent
                             set parent_start_time [lindex [lindex $node_start_time $position] 1] ; # get start time parent
                             if { [expr $parent_delay + $parent_start_time] >= $latency} {
-                                # means that some parents must be still scheduled
+                                # means that some parents must be finish its operation
                                 set flag 0
                                 break
                             }
@@ -101,6 +104,7 @@ proc list_mlac {res_info} {
                     if { $flag == 1 } {
                         # schedule node if all parents are schedule
                         set position [lsearch -index 0 $all_nodes $node]
+                        # add node to list of nodes that can be scheduled
                         lappend nodes_to_schedule $node
                     }
                 }
@@ -143,18 +147,23 @@ proc list_mlac {res_info} {
                     set node_to_schedule [lindex [lindex $node_and_mobility 0] 0]
                     # puts "node to schedule $node_to_schedule"
                     # puts "node and mobility before: $node_and_mobility"
+                    # delete node from node to scheduled
                     set node_and_mobility [lreplace $node_and_mobility 0 0]
                     # puts "node and mobility after: $node_and_mobility"
+                    # serach position of node in all nodes list
                     set position_all_nodes [lsearch $all_nodes $node_to_schedule]
                     # puts "before --> $all_nodes"
+                    # delete node in all nodes list
                     set all_nodes [lreplace $all_nodes $position_all_nodes $position_all_nodes]
                     # puts "after --> $all_nodes"
 
+                    # assign start time to node
                     set app [list]
                     lappend app $node_to_schedule
                     lappend app $latency
                     lappend node_start_time $app
                     
+                    # assign fu to node
                     set app [list]
                     lappend app $node_to_schedule
                     lappend app $fu
@@ -186,23 +195,21 @@ proc list_mlac {res_info} {
 
                         incr i 1
                     }
-                    
 
                     incr occurency -1
 
-                    #sequence of code not nedded maybe
+                    # upgrade current occurency of fu
                     set app [list]
                     lappend app $fu
                     lappend app $occurency
                     set avaiable_resources [lreplace $avaiable_resources $position $position $app]
+                    set resources_cnt [lreplace $resources_cnt $latency $latency $avaiable_resources]
 
                     # if empty list of node to schedule
                     if {[llength $node_and_mobility] == 0} {
                         break
                     }
-                }
-                
-                set resources_cnt [lreplace $resources_cnt $latency $latency $avaiable_resources]
+                }                   
             }    
         }
 
@@ -214,7 +221,11 @@ proc list_mlac {res_info} {
             incr latency
         }
     }
-   
+    
+    #########################
+    # TO DO: this works too #
+    #########################
+    # set latancy [llength $resources_cnt]
 
     set myList {}
     lappend myList $node_start_time
