@@ -24,9 +24,12 @@ proc repeated_comb {} {
     #if lsearch dont match the operation return -1
     #take all the fu that perform that operation and append to the vector vett_fu
     if {[lsearch $list_node $node_operation]== -1} {
+      set fu_operations [get_lib_fus_from_op $node_operation]
+      if { [llength $fu_operations] == 0} {
+        return
+      }
       set vett_fu [concat $vett_fu  [get_lib_fus_from_op $node_operation]]
       lappend list_node $node_operation
-      
     }
   }
   set vett_fu [lreplace $vett_fu 0 0]
@@ -52,7 +55,29 @@ proc repeated_comb {} {
         #pruning
       }
     }
-    puts $node_fu 
+    set verify_list 0
+    set fu_operations 0
+    foreach element $node_fu {
+      #devo creare una lista {fu amount}
+      
+      set index_list [lsearch $fu_operations $element]
+      if { $index_list == -1} {
+        set app $element
+        lappend app 1
+        lappend verify_list $app
+        lappend fu_operations $element
+      } else {
+        set number [lindex [lindex $verify_list $index_list] 1]
+        puts 
+        incr number
+        set app $element
+        lappend app $number
+        set verify_list [lreplace $verify_list $index_list $index_list $app ]
+      }
+    }
+    set verify_list [lreplace $verify_list 0 0]
+    puts $node_fu
+    puts $verify_list 
 
     #verifica
   }
