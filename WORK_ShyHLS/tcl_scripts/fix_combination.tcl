@@ -38,11 +38,11 @@ proc repeated_comb {area} {
   #count_operation contain the occurrence of the operation
   #fu_operation contain all the fu for that operation 
   #------------------------ SECONDA PARTE----------------------------------
-  set final_comb 0
-  set final 0
   #iterate for each operation
   for {set i 0} {$i < [llength $count_operation]} {incr i} {
-    set vett 0
+    set final_comb 0
+    set final 0
+    set vett [list]
     set fus [get_lib_fus_from_op [lindex $list_node_op $i]]
     set leng [llength $fus]
     set count_operation_operation [lindex $count_operation $i]
@@ -61,7 +61,7 @@ proc repeated_comb {area} {
       lappend app $fu_area
       lappend fus_area $app
     }
-    set vett [lreplace $vett 0 0]
+    # set vett [lreplace $vett 0 0]
     puts $fus_area
 
     set index 0
@@ -159,57 +159,66 @@ proc repeated_comb {area} {
     #set all the combination in a variable
     set comb_operation [lreplace $comb_operation 0 0]
     lappend comb_general $comb_operation
-
+    puts "Tot combinazioni: $final_comb vs $final"
   }
 
-  puts "Tot combinazioni: $final_comb vs $final"
-
+  set comb_general [lreplace $comb_general 0 0]
 #------------------------------FINE SECONDA PARTE-----------------------------------------------
 #OTTENGO UNA LISTA DI ELEMENTI, OGNI ELEMENTO è UNA LISTA DI COMBINAZIONI PER OGNI OPERAZIONE
 #comb_general contiene tutte le combinazioni per ogni operazione, adesso bisogna combinare questi elementi di ogni lista 
 #comb general è una lista di liste di combinazioni per ogni operazione
 #------------------------------ INIZIO TERZA PARTE-------------------------------------------
-  #set the index of the operand
-  set vett 0
-  lappend verif_comb [lindex [lindex $comb_general 0] 0]
-  set lung [expr {[llength $comb_general] -1}]
+  #  set the index of the operand
+  set vett [list]
+  set verif_comb [list]
+  set lung [llength $comb_general]
   #create the instance of comb to verify verif_comb
-  for {set i 1} {$i < $lung} {incr i} {
-    lappend vett 0
+  for {set i 0} {$i < $lung} {incr i} {
+    if {$i == 0} {
+      lappend vett -1
+    } else {
+      lappend vett 0
+    }
     lappend verif_comb [lindex [lindex $comb_general $i] 0]
+    # puts [lindex $comb_general $i]
+    puts [llength [lindex $comb_general $i]]
   }
-  lappend vett -1
-  lappend verif_comb -1
+
+  # set verif_comb [list]
   #the vector begin with 000--000-1
-  set index $lung
-  set flag 0
-  lappend vett -1
-  while { $flag == 0} {
+  set flag 1
+  set final 0
+  
+  while {$flag == 0} {
+    set index 0
     #check condition and exit from the cycle
     #if all the vett have reach the maximum exit with flag=1
-    while {[lindex $vett $index] == [expr {[llength [lindex $comb_general $index]] -1}]} {
-        incr index -1
-        if {$index == -1} {
+    while {[lindex $vett $index] == [expr {[llength [lindex $comb_general $index]]-1}]} {
+        incr index
+        if {$index == [llength $comb_general]} {
           set flag 1 
         }
     }
+
+    # if {[lindex $vett $index] == 50} {break;}
+
     if {$flag == 0} {
       #vett[index]++
       set tmp [lindex $vett $index]
+      # upgrade
       incr tmp
       set vett [lreplace $vett $index $index $tmp]
-      #replace
-      set verif_comb [lreplace $verif_comb $index $index [lindex [lindex $comb_general $index] $tmp]]
-      while { $index < $lung } {
-        #index ++
-        incr index
-        #vett[index]=0
-        set vett [lreplace $vett $index $index 0]
-        #replace
-        set verif_comb [lreplace $verif_comb $index $index [lindex [lindex $comb_general $index] 0]]
+      
+      for {set i [expr $index-1]} {$i >= 0} {incr i -1} {
+         set vett [lreplace $vett $i $i 0]
+         set verif_comb [lreplace $verif_comb $i $i [lindex [lindex $comb_general $i] 0]]
       }
+      set verif_comb [lreplace $verif_comb $index $index [lindex [lindex $comb_general $index] $tmp]]
+      
       #VERIFICA!!!
-      puts $verif_comb
+      puts "$verif_comb - $vett"
+      puts $final
+      incr final
     }
   }
 #-------------------------------FINE TERZA PARTE---------------------------------
