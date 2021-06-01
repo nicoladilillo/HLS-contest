@@ -1,21 +1,23 @@
 
 
-proc repeated_comb {} {
+proc repeated_comb {area} {
   source ./tcl_scripts/setenv.tcl
   read_design ./data/DFGs/fir.dot
   read_library ./data/RTL_libraries/RTL_library_multi-resources.txt
   set nodes [get_nodes]
   set list_node_op 0
   set count_operation 0
-#count of all the operation and preparation of the list of fu for each operation
-#--------------------------------PRIMA PARTE------------------------------
+  set tot_operations 0
+
+  #count of all the operation and preparation of the list of fu for each operation
+  #--------------------------------PRIMA PARTE------------------------------
   foreach element $nodes {
     #take from the nodes the operation
     set node_operation [get_attribute $element operation]
     #if lsearch dont match the operation return -1
     #take all the fu that perform that operation
     set index [lsearch $list_node_op $node_operation]
-    if { $index == -1} {
+    if { $index == -1 } {
       #count of operation
       lappend count_operation 1
       lappend list_node_op $node_operation
@@ -24,27 +26,51 @@ proc repeated_comb {} {
         incr dec
         set count_operation [lreplace $count_operation $index $index $dec]
     }
+    incr tot_operations
   }
-  set list_node_op [lreplace $list_node_op 0 0]
-  set count_operation [lreplace $count_operation 0 0]
+
+  set list_node_op [lreplace $list_node_op 0 0] ; # all operation
+  set count_operation [lreplace $count_operation 0 0] ; # how many for each operation
+
+  puts "Total operation: $tot_operations"
+
   #----------------------------FINE PRIMA PARTE---------------------------------
   #count_operation contain the occurrence of the operation
   #fu_operation contain all the fu for that operation 
   #------------------------ SECONDA PARTE----------------------------------
+  set final_comb 0
+  set final 0
   #iterate for each operation
   for {set i 0} {$i < [llength $count_operation]} {incr i} {
     set vett 0
-    set leng [llength [get_lib_fus_from_op [lindex $list_node_op $i]]]
+    set fus [get_lib_fus_from_op [lindex $list_node_op $i]]
+    set leng [llength $fus]
+    set count_operation_operation [lindex $count_operation $i]
+    set memory_needed [expr {(($area+0.0)/$tot_operations)*$count_operation_operation}]
+    puts "$fus - $leng => $count_operation_operation ($memory_needed on $area)"
+
     #vector of tot zeros, one for each fu
-    for {set j 1} {$j < $leng} {incr j} {
+    set fus_area [list]
+    foreach fu $fus {
       #set the vector that we use to make the combination
       lappend vett 0
+
+      set fu_area [get_attribute $fu area]
+      set app [list]
+      lappend app $fu
+      lappend app $fu_area
+      lappend fus_area $app
     }
+    set vett [lreplace $vett 0 0]
+    puts $fus_area
+
     set index 0
     set sum 0
     set comb_operation 0
-    #finish of the combination when the last element reach the maximum number of that operation
-    while { [lindex $vett end] != [lindex $count_operation $i]} {
+
+    # finish of the combination when the last element reach the maximum number of that operation
+    while { [lindex $vett end] != $count_operation_operation} {
+
       if { [lindex $vett end] != 0} {
         set verify_in [llength $vett]
         incr verify_in -2
@@ -63,8 +89,8 @@ proc repeated_comb {} {
         #vett[end]=0
         set vett [lreplace $vett end end 0]  
       }
+
       for {set in $index } {$in <$leng } {incr in } {
-        #verify that all the element after in are all 0
         #verify that all the element after in are all 0
         set verify_in $in
         incr verify_in
@@ -95,54 +121,75 @@ proc repeated_comb {} {
         }
         
       }
+
       set in 0
       #set all the combination of the single operation in a variable
       set comb_unique 0
       foreach element [get_lib_fus_from_op [lindex $list_node_op $i]] {
         #set the fu and the occurrence in the vect comb_unique if the occurrence is != 0 
         set occur [lindex $vett $in]
-        if {$occur != 0} {
+        # if {$occur != 0} {
           set fu_occ $element
           lappend fu_occ $occur
           lappend comb_unique $fu_occ
-        }
+        # }
         incr in
       }
       set comb_unique [lreplace $comb_unique 0 0]
-      #the vector comb unique contain all the fu and occurrence
-      lappend comb_operation $comb_unique
+
+      set area_comb 0
+      foreach var $comb_unique {
+        set fu_unit [lindex $var 0]
+        set fu_occurency [lindex $var 1]
+        set fu_area [lindex [lindex $fus_area [lsearch -index 0 $fus_area $fu_unit]] 1]
+        incr area_comb [expr {$fu_area * $fu_occurency}]
+      }
+
+      if {$area_comb < $memory_needed} {
+        puts "$comb_unique - $area_comb"
+
+        #the vector comb unique contain all the fu and occurrence
+        lappend comb_operation $comb_unique
+        incr final_comb
+      }
+
+      incr final
     }
+
     #set all the combination in a variable
     set comb_operation [lreplace $comb_operation 0 0]
     lappend comb_general $comb_operation
+
   }
+
+  puts "Tot combinazioni: $final_comb vs $final"
 
 #------------------------------FINE SECONDA PARTE-----------------------------------------------
 #OTTENGO UNA LISTA DI ELEMENTI, OGNI ELEMENTO è UNA LISTA DI COMBINAZIONI PER OGNI OPERAZIONE
 #comb_general contiene tutte le combinazioni per ogni operazione, adesso bisogna combinare questi elementi di ogni lista 
 #comb general è una lista di liste di combinazioni per ogni operazione
 #------------------------------ INIZIO TERZA PARTE-------------------------------------------
-  #setto gli indici di tutti gli operandi
-  set vett 0
-  for {set i 1} {$i < [llength $comb_general]} {incr i} {
-    lappend vett 0
-  }
-  set flag 0
-  while {flag ==0} {
-  #prendo tot indici uno per ogni operazione
-    for {set i 0} {$i < [llength $comb_general]} {incr i} {
-      #seleziono le combinazioni per ogni operazione
+  # #setto gli indici di tutti gli operandi
+  # set vett 0
+  # for {set i 1} {$i < [llength $comb_general]} {incr i} {
+  #   lappend vett 0
+  # }
+  # set flag 0
+  # while {$flag ==0} {
+  # #prendo tot indici uno per ogni operazione
+  #   for {set i 0} {$i < [llength $comb_general]} {incr i} {
+  #     #seleziono le combinazioni per ogni operazione
         
-    }
-    #PARTE DI VERIFICA QUI!!!
-    #verify it is the last combination
-    set i 0
-    set flag 1
-    while {flag == 1 && $i < [llength $comb_general]} {
-      if {[lindex $vett $i] != [llength [lindex $comb_general $i]]} {
-        set flag 0
-      }
-    }
-  }
+  #   }
+  #   #PARTE DI VERIFICA QUI!!!
+  #   #verify it is the last combination
+  #   set i 0
+  #   set flag 1
+  #   while {$flag == 1 && $i < [llength $comb_general]} {
+  #     if {[lindex $vett $i] != [llength [lindex $comb_general $i]]} {
+  #       set flag 0
+  #     }
+  #   }
+  # }
 #-------------------------------FINE TERZA PARTE---------------------------------
 }
