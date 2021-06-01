@@ -28,7 +28,7 @@ proc repeated_comb {area} {
     }
     incr tot_operations
   }
-
+  #CALCOLO DELLE PERCENTUALI 
   set list_node_op [lreplace $list_node_op 0 0] ; # all operation
   set count_operation [lreplace $count_operation 0 0] ; # how many for each operation
 
@@ -46,6 +46,7 @@ proc repeated_comb {area} {
     set fus [get_lib_fus_from_op [lindex $list_node_op $i]]
     set leng [llength $fus]
     set count_operation_operation [lindex $count_operation $i]
+    #max area for each operation
     set memory_needed [expr {(($area+0.0)/$tot_operations)*$count_operation_operation}]
     puts "$fus - $leng => $count_operation_operation ($memory_needed on $area)"
 
@@ -67,9 +68,8 @@ proc repeated_comb {area} {
     set index 0
     set sum 0
     set comb_operation 0
-
     # finish of the combination when the last element reach the maximum number of that operation
-    while { [lindex $vett end] != $count_operation_operation} {
+    while { [lindex $vett end] != $count_operation_operation } {
 
       if { [lindex $vett end] != 0} {
         set verify_in [llength $vett]
@@ -112,6 +112,20 @@ proc repeated_comb {area} {
           incr dec -1
           set vett [lreplace $vett $in $in $dec]
         } elseif {$sum < [lindex $count_operation $i ]} {
+          if {$in != [expr {$leng -1}]} {
+            set area 0
+            for {set tmp $in} {$tmp > 0} {incr tmp -1 } {
+              set area [expr {$area + [lindex $vett $tmp]*[lindex [lindex $fus_area $tmp] 1]}]
+            }
+            while {$area > $memory_needed} {
+              set dec [lindex $vett $in] 
+              incr dec -1
+              set vett [lreplace $vett $in $in $dec]
+              for {set tmp $in} {$tmp > 0} {incr tmp -1 } {
+              set area [expr {$area + [lindex $vett $tmp]*[lindex [lindex $fus_area $tmp] 1]}]
+              }
+            }
+          }
           #if the sum is less than the number of operation for each fu
           #vett[in] take all the rest of the operation 
           set dec [lindex $count_operation $i ]
