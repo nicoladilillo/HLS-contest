@@ -169,27 +169,48 @@ proc repeated_comb {area} {
 #comb_general contiene tutte le combinazioni per ogni operazione, adesso bisogna combinare questi elementi di ogni lista 
 #comb general è una lista di liste di combinazioni per ogni operazione
 #------------------------------ INIZIO TERZA PARTE-------------------------------------------
-  # #setto gli indici di tutti gli operandi
-  # set vett 0
-  # for {set i 1} {$i < [llength $comb_general]} {incr i} {
-  #   lappend vett 0
-  # }
-  # set flag 0
-  # while {$flag ==0} {
-  # #prendo tot indici uno per ogni operazione
-  #   for {set i 0} {$i < [llength $comb_general]} {incr i} {
-  #     #seleziono le combinazioni per ogni operazione
-        
-  #   }
-  #   #PARTE DI VERIFICA QUI!!!
-  #   #verify it is the last combination
-  #   set i 0
-  #   set flag 1
-  #   while {$flag == 1 && $i < [llength $comb_general]} {
-  #     if {[lindex $vett $i] != [llength [lindex $comb_general $i]]} {
-  #       set flag 0
-  #     }
-  #   }
-  # }
+  #set the index of the operand
+  set vett 0
+  lappend verif_comb [lindex [lindex $comb_general 0] 0]
+  set lung [expr {[llength $comb_general] -1}]
+  #create the instance of comb to verify verif_comb
+  for {set i 1} {$i < $lung} {incr i} {
+    lappend vett 0
+    lappend verif_comb [lindex [lindex $comb_general $i] 0]
+  }
+  lappend vett -1
+  lappend verif_comb -1
+  #the vector begin with 000--000-1
+  set index $lung
+  set flag 0
+  lappend vett -1
+  while { $flag == 0} {
+    #check condition and exit from the cycle
+    #if all the vett have reach the maximum exit with flag=1
+    while {[lindex $vett $index] == [expr {[llength [lindex $comb_general $index]] -1}]} {
+        incr index -1
+        if {$index == -1} {
+          set flag 1 
+        }
+    }
+    if {$flag == 0} {
+      #vett[index]++
+      set tmp [lindex $vett $index]
+      incr tmp
+      set vett [lreplace $vett $index $index $tmp]
+      #replace
+      set verif_comb [lreplace $verif_comb $index $index [lindex [lindex $comb_general $index] $tmp]]
+      while { $index < $lung } {
+        #index ++
+        incr index
+        #vett[index]=0
+        set vett [lreplace $vett $index $index 0]
+        #replace
+        set verif_comb [lreplace $verif_comb $index $index [lindex [lindex $comb_general $index] 0]]
+      }
+      #VERIFICA!!!
+      puts $verif_comb
+    }
+  }
 #-------------------------------FINE TERZA PARTE---------------------------------
 }

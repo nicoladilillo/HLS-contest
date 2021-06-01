@@ -25,6 +25,7 @@ es. numero di operazione 10 elementi 3 0 0 0 vettore di partenza somma=0
  secondo ciclo index=0 entra in 10 seconda condizione attiva e diminuisce a 9 la somma ora è 9, index 1 entra nella terza condizione secondo elemento 1 ora la somma è 10, vettore finale 0 1 9 etc etc
 -TERZA PARTE 
 In questa parte le combinazioni di ogni operazione vengono messe insieme e verificate per trovare la migliore
+Il vettore vett aiuta nel inirizzare gli elementi che vengono salvati in verif_comb, il vettore finale che sarà usato per lo scheduling e la verifica. Questa parte è formata da un while che termina ad una sola condizione (il primo while interno) quando tutte le combinazioni avranno raggiunto il massimo indice il flag sarà settato a 1 e si uscirà dal while, all'interno del while (nell'if) viene preso un nuovo elemento, settati (se necessari) gli elementi precedenti ad indice 0 e successivamente verificati.
 ### Assegnazione risorse
 
 Assegnazione di risorse effettuate tramite calcolo combinatorio.
