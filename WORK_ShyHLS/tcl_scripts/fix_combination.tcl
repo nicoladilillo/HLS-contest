@@ -134,6 +134,7 @@ proc repeated_comb {} {
       #seleziono le combinazioni per ogni operazione
         
     }
+    #PARTE DI VERIFICA QUI!!!
     #verify it is the last combination
     set i 0
     set flag 1
