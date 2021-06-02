@@ -1,5 +1,4 @@
 
-
 proc repeated_comb {area} {
   source ./tcl_scripts/setenv.tcl
   read_design ./data/DFGs/fir.dot
@@ -61,7 +60,8 @@ proc repeated_comb {area} {
       lappend app $fu_area
       lappend fus_area $app
     }
-    puts $fus_area
+		set min_fu_area [lindex [lindex $fus_area end] 1]
+		puts "$fus_area => min($min_fu_area)"
 
     set comb_operation [list]
     set comb_unique [list]
@@ -81,31 +81,38 @@ proc repeated_comb {area} {
       set index 0
       set flag 0
 
-      while {$flag == 0} {
+      while { $flag == 0 } {
         set fu_area_comb [lindex [lindex $fus_area $index] 1]
-        # aggiorna le are dentro
-        if { [expr {$fu_area_comb+$area_comb}] < $memory_needed } {
+        # aggiorna le aree dentro
+        if { [expr {$fu_area_comb+$area_comb}] <= $memory_needed } {
           set comb [lindex $comb_unique $index]
           set occ [lindex $comb 1]
+
           set app [list]
           lappend app [lindex $comb 0]
           lappend app [expr {$occ+1} ]
           set comb $app
           set comb_unique [lreplace $comb_unique $index $index $comb]
-          set flag 1 ; #diverso
+          
           set area_comb [expr {$area_comb+$fu_area_comb}]
+
+					set flag 1
         } else {
           set comb [lindex $comb_unique $index]
           set occ [lindex $comb 1]
           # set fu_area_tot [expr {$occ*$fu_area_comb}]
           if {$occ > 0} {
+						# area che libero
+            set fu_area_tot [expr {$occ*$fu_area_comb}]
+
             set app [list]
             lappend app [lindex $comb 0]
-            lappend app [expr {$occ-1} ]
+            lappend app 0
             set comb $app
             set comb_unique [lreplace $comb_unique $index $index $comb]
-            set area_comb [expr {$area_comb-$fu_area_comb}]
+            set area_comb [expr {$area_comb-$fu_area_tot}]
           }
+
           incr index ; #diverso
         }
 
@@ -114,22 +121,12 @@ proc repeated_comb {area} {
           set done 1
         }
       }
-     
-      while {$done == 0 && [expr {$area_comb+$fu_area_comb}] <= $memory_needed } {
-        set comb [lindex $comb_unique $index]
-        set occ [lindex $comb 1]
-        set app [list]
-        lappend app [lindex $comb 0]
-        lappend app [expr {$occ+1}]
-        set comb $app
-        set comb_unique [lreplace $comb_unique $index $index $comb]
-        set area_comb [expr {$area_comb+$fu_area_comb}]
-      }
 
-      puts "$comb_unique - $area_comb"
-      lappend comb_operation $comb_unique
-
-      incr final
+			if { [expr {$memory_needed-$area_comb}] < $min_fu_area } {
+				incr final
+				# puts "$comb_unique - $area_comb - $final"
+				lappend comb_operation $comb_unique
+			}
     }
 
     #set all the combination in a variable
@@ -137,6 +134,7 @@ proc repeated_comb {area} {
     puts "Tot combinazioni: $final"
   }
 
+	return
 #------------------------------FINE SECONDA PARTE-----------------------------------------------
 #OTTENGO UNA LISTA DI ELEMENTI, OGNI ELEMENTO è UNA LISTA DI COMBINAZIONI PER OGNI OPERAZIONE
 #comb_general contiene tutte le combinazioni per ogni operazione, adesso bisogna combinare questi elementi di ogni lista 
