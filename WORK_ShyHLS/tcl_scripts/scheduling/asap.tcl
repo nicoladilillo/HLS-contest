@@ -7,7 +7,7 @@ proc asap {} {
     set start_time 1
     foreach parent [get_attribute $node parents] {
       set parent_op [get_attribute $parent operation]
-      set fu [get_lib_fu_from_op $parent_op]
+      set fu [lindex [get_lib_fus_from_op $parent_op] 0]
       set parent_delay [get_attribute $fu delay]
       set idx_parent_start [lsearch -index 0 $node_start_time $parent]
       set parent_start_time [lindex [lindex $node_start_time $idx_parent_start] 1]
