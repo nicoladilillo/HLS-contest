@@ -26,7 +26,11 @@ proc repeated_comb { areatot } {
         set count_operation [lreplace $count_operation $index $index $dec]
     }
   }
-
+  #---------------------------------prendo la metà dei nodi-----------------------
+  for {set i 0} {$i < [llength $count_operation]} {incr i} {
+      set count_operation [lreplace $count_operation $i $i [expr {([lindex $count_operation $i]/2) + 1}]]
+  }
+  puts $count_operation
   #----------------------------FINE PRIMA PARTE---------------------------------
   #count_operation contain the occurrence of the operation
   #fu_operation contain all the fu for that operation 
@@ -202,7 +206,6 @@ puts "FINE SECONDA PARTE"
   set index 0
   set pruningFlag 0
   while { $flag == 0 } {
-    incr r
     if { $pruningFlag == 0 } {
       set index 0
     } else {
@@ -271,7 +274,7 @@ puts "FINE SECONDA PARTE"
         }
         puts "Area non soddisfatta $vett $area $r "
       } else {
-
+        incr r
         #VERIFICA!!!
         #puts "$verif_comb $area"
         #puts $fileId $verif_comb
