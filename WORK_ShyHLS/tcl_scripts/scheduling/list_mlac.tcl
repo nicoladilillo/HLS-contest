@@ -1,9 +1,8 @@
 ##########################################################################
 ### TO DO try to divide node in subset for type of operation #############       
 ##########################################################################
-source ./tcl_scripts/scheduling/mobility.tcl
 
-proc list_mlac {res_info} {
+proc list_mlac {res_info nodes_mobility} {
     # RETURN PARAMETER
     # list of node and assign start time: <node, start_time>
     set node_start_time [list]
@@ -13,15 +12,10 @@ proc list_mlac {res_info} {
     set latency 0
 
     # WORKING PARAMETER
-    #all nodes gets in sorted way
-    set  all_nodes [get_sorted_nodes] 
     # use to see amount of resources avaiable
     set resources_cnt [list]
 
     # PREEPARING PHASE
-
-    # mobility for each node
-    set nodes_mobility [mobility]
 
     # group fus for operation
     set operations [list]
@@ -36,6 +30,8 @@ proc list_mlac {res_info} {
             set app [list]
             lappend app $op
             lappend app $operation
+            lappend app {} ; # all_node
+            lappend app {} ; # node_to_schedule
             lappend operations $app
         } else {
             set fu [lindex [lindex $operations $position] 1]
@@ -48,26 +44,40 @@ proc list_mlac {res_info} {
         }
     }
 
-    # print all possible group created
-    foreach cell $operations {
-        foreach fu [lindex $cell 1] {
-            set op [lindex $cell 0]
-            set delay_fu [get_attribute $fu delay]
-            puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu"
-        }
+    foreach node [get_nodes] {
+        set op [get_attribute $node operation]
+        set position [lsearch -index 0 $operations $op]
+        set operation [lindex $operations $position]
+        set all_node_op [lindex $operation 2]
+        lappend all_node_op $node
+        set operation [lreplace $operation 2 2 $all_node_op]
+        set operations [lreplace $operations $position $position $operation]
     }
+
+    # print all possible group created
+    # foreach cell $operations {
+    #     foreach fu [lindex $cell 1] {
+    #         set op [lindex $cell 0]
+    #         set delay_fu [get_attribute $fu delay]
+    #     }
+    #     set all_node [lindex $cell 2]
+    #     puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu - NODE: $all_node"
+    # }
 
     set done 1
     # untill all node are scheduled
     while {$done} {
-        foreach opeation_group $operations {
+        set flag_final 1
+        for {set j 0} {$j < [llength $operations]} {incr j} {
 
             # LOOKINF FOR NODE THAT CAN BE SCHEDULED WITH THIS OPERATION
 
             # starting at each cycle
+            set opeation_group [lindex $operations $j]
             set operation [lindex $opeation_group 0]
             set fus [lindex $opeation_group 1]
-            set nodes_to_schedule [list]
+            set all_nodes [lindex $opeation_group 2]
+            set nodes_to_schedule [lindex $opeation_group 3]
             set node_and_mobility [list]
 
             # puts "*****"
@@ -76,37 +86,39 @@ proc list_mlac {res_info} {
             ##########################################################################
             ### TO DO check if, when some node can't be scheduled, for can carry on ##       
             ##########################################################################
-            foreach node $all_nodes {
-                set operation_node [get_attribute $node operation]
-                
+            set length [llength $all_nodes]
+            for {set i 0} {$i < $length} {incr i} {
+                set node [lindex $all_nodes $i]    
+            
                 # same operation considered in the current for
-                if { [string first $operation_node $operation] == 0 } {
-                    set flag 1
-                    # lookig for node with all parents scheduled
-                    foreach parent [get_attribute $node parents] {
-                        set position [lsearch -index 0 $node_start_time $parent]
-                        if { $position == -1 } {
-                            # means that some parents must be still scheduled
+                set flag 1
+                # lookig for node with all parents scheduled
+                foreach parent [get_attribute $node parents] {
+                    set position [lsearch -index 0 $node_start_time $parent]
+                    if { $position == -1 } {
+                        # means that some parents must be still scheduled
+                        set flag 0
+                        break
+                    } else {
+                        ### TO DO list of end delay
+                        set parent_delay [get_attribute [lindex [lindex $node_fu $position] 1] delay] ; # get delay parent
+                        set parent_start_time [lindex [lindex $node_start_time $position] 1] ; # get start time parent
+                        if { [expr $parent_delay + $parent_start_time] >= $latency} {
+                            # means that some parents must be finish its operation
                             set flag 0
                             break
-                        } else {
-                            ### TO DO list of end delay
-                            set parent_delay [get_attribute [lindex [lindex $node_fu $position] 1] delay] ; # get delay parent
-                            set parent_start_time [lindex [lindex $node_start_time $position] 1] ; # get start time parent
-                            if { [expr $parent_delay + $parent_start_time] >= $latency} {
-                                # means that some parents must be finish its operation
-                                set flag 0
-                                break
-                            }
                         }
                     }
+                }
 
-                    if { $flag == 1 } {
-                        # schedule node if all parents are schedule
-                        set position [lsearch -index 0 $all_nodes $node]
-                        # add node to list of nodes that can be scheduled
-                        lappend nodes_to_schedule $node
-                    }
+                if { $flag == 1 } {
+                    # schedule node if all parents are schedule
+                    # add node to list of nodes that can be scheduled
+                    lappend nodes_to_schedule $node
+                    # delete node in all nodes list
+                    set all_nodes [lreplace $all_nodes $i $i]
+                    incr i -1
+                    incr length -1
                 }
             }
 
@@ -118,8 +130,9 @@ proc list_mlac {res_info} {
                 set app [lindex $nodes_mobility $position]
                 lappend node_and_mobility $app
             }
-            set node_and_mobility [lsort -index 1 -integer $node_and_mobility]
-            # puts "node: $node_and_mobility"
+            # set node_and_mobility [lsort -index 1 -integer $node_and_mobility]
+            # puts "node of $operation: $nodes_to_schedule"
+            # puts $fu
 
             # check avaiable resources
             set avaiable_resources [lindex $resources_cnt $latency]
@@ -132,7 +145,7 @@ proc list_mlac {res_info} {
             # all fu dedicated avaiable in that moment
             foreach fu $fus {
                 # if empty list of node to schedule
-                if {[llength $node_and_mobility] == 0} {
+                if {[llength $nodes_to_schedule] == 0} {
                    break
                 }
                 set position [lsearch -index 0 $avaiable_resources $fu] ; # position of fu
@@ -142,20 +155,11 @@ proc list_mlac {res_info} {
 
                 # iterate untile more that zero occurency are avaiable
                 while { $occurency > 0 } {
-                    
-                    # schedule node starting from lower mobility
-                    set node_to_schedule [lindex [lindex $node_and_mobility 0] 0]
-                    # puts "node to schedule $node_to_schedule"
-                    # puts "node and mobility before: $node_and_mobility"
                     # delete node from node to scheduled
-                    set node_and_mobility [lreplace $node_and_mobility 0 0]
+                    set node_to_schedule [lindex $nodes_to_schedule 0]
+                    set nodes_to_schedule [lreplace $nodes_to_schedule 0 0]
                     # puts "node and mobility after: $node_and_mobility"
-                    # serach position of node in all nodes list
-                    set position_all_nodes [lsearch $all_nodes $node_to_schedule]
-                    # puts "before --> $all_nodes"
-                    # delete node in all nodes list
-                    set all_nodes [lreplace $all_nodes $position_all_nodes $position_all_nodes]
-                    # puts "after --> $all_nodes"
+                    # puts "node to schedule: $node_to_schedule"
 
                     # assign start time to node
                     set app [list]
@@ -170,9 +174,9 @@ proc list_mlac {res_info} {
                     lappend node_fu $app
 
                     # upgrade future occurency of fu
-                    set i 1
-                    while {$i < $fu_delay} {
-                        set time [expr $latency+$i]
+                    set k 1
+                    while {$k < $fu_delay} {
+                        set time [expr {$latency+$k}]
 
                         # check avaiable resources
                         set avaiable_resources_1 [lindex $resources_cnt $time]
@@ -193,7 +197,7 @@ proc list_mlac {res_info} {
                         # puts "after res. av.(time $time): $avaiable_resources_1"
                         set resources_cnt [lreplace $resources_cnt $time $time $avaiable_resources_1]
 
-                        incr i 1
+                        incr k 1
                     }
 
                     incr occurency -1
@@ -206,20 +210,29 @@ proc list_mlac {res_info} {
                     set resources_cnt [lreplace $resources_cnt $latency $latency $avaiable_resources]
 
                     # if empty list of node to schedule
-                    if {[llength $node_and_mobility] == 0} {
+                    if {[llength $nodes_to_schedule] == 0} {
                         break
                     }
                 }                   
-            }    
-        }
+            }
 
-        # check if all nodes have been scheduled
-        if {[llength $all_nodes] == 0} {
-            set done 0 ; # end
-            incr latency $fu_delay ; # increment latancy with delay of last node
+            set opeation_group [lreplace $opeation_group 2 2 $all_nodes]
+            set opeation_group [lreplace $opeation_group 3 3 $nodes_to_schedule]
+            set operations [lreplace $operations $j $j $opeation_group]
+
+            # check if all nodes have been scheduled
+            if {[llength $all_nodes] > 0} {
+                set flag_final 0
+            }
+        }
+        
+        if {$flag_final == 1} { 
+            set done 0 
+            set latency [llength $resources_cnt]
         } else {
             incr latency
         }
+
     }
     
     #########################

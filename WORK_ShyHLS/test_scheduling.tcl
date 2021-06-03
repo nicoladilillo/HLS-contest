@@ -1,20 +1,21 @@
-source ./tcl_scripts/setenv.tcl
-# source ./tcl_scripts/scheduling/mobility.tcl
+
+# source ./tcl_scripts/setenv.tcl ; read_design ./data/DFGs/fir.dot ; read_library ./data/RTL_libraries/RTL_library_multi-resources.txt
+
+
 source ./tcl_scripts/scheduling/list_mlac.tcl
+source ./tcl_scripts/scheduling/mobility.tcl
 
-read_design ./data/DFGs/fir.dot
-read_library ./data/RTL_libraries/RTL_library_multi-resources.txt
+# mobility for each node
+set nodes_mobility [mobility]
 
+set res_info {{L6 6} {L2 22} {L12 50} {L15 2}} 
 
-# set mobility_result [mobility]
-# foreach pair $mobility_result {
-#     set node_id [lindex $pair 0]
-#     set mobility [lindex $pair 1]
-#     puts "Node: $node_id mobility @ $mobility"
-# }
+set start_time [clock milliseconds]
+set list_mlac_result [list_mlac $res_info $nodes_mobility]
+set end_time [clock milliseconds]
+set elapsed_time [expr {$end_time-$start_time}]
+puts "Time: $elapsed_time"
 
-set res_info {{L1 3} {L5 3} {L12 3} {L15 1}} 
-set list_mlac_result [list_mlac $res_info]
 # puts $list_mlac_result
 set schedule [lindex $list_mlac_result 0]
 set fu [lindex $list_mlac_result 1]
