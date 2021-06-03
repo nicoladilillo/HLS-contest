@@ -6,6 +6,7 @@ proc list_mlac {res_info nodes_mobility} {
     # RETURN PARAMETER
     # list of node and assign start time: <node, start_time>
     set node_start_time [list]
+    set node_end_time [list]
     # list of node and assign fu: <node, fu>
     set node_fu [list]
     # latency total
@@ -21,14 +22,10 @@ proc list_mlac {res_info nodes_mobility} {
     set operations [list]
     foreach operation $res_info {
         set operation [lindex $operation 0]
-        # puts $operation
         set op [get_attribute $operation operation]
-        # puts $op
         set position [lsearch -index 0 $operations $op]
-        # puts $position
         if { $position == -1 } {
-            set app [list]
-            lappend app $op
+            set app $op
             lappend app $operation
             lappend app {} ; # all_node
             lappend app {} ; # node_to_schedule
@@ -37,13 +34,13 @@ proc list_mlac {res_info nodes_mobility} {
             set fu [lindex [lindex $operations $position] 1]
             # puts $fu
             lappend fu $operation
-            set app [list]
-            lappend app $op
+            set app $op
             lappend app $fu
             set operations [lreplace $operations $position $position $app]
         }
     }
 
+    # group each node for type of operation
     foreach node [get_nodes] {
         set op [get_attribute $node operation]
         set position [lsearch -index 0 $operations $op]
@@ -100,10 +97,8 @@ proc list_mlac {res_info nodes_mobility} {
                         set flag 0
                         break
                     } else {
-                        ### TO DO list of end delay
-                        set parent_delay [get_attribute [lindex [lindex $node_fu $position] 1] delay] ; # get delay parent
-                        set parent_start_time [lindex [lindex $node_start_time $position] 1] ; # get start time parent
-                        if { [expr $parent_delay + $parent_start_time] >= $latency} {
+                        set parent_end_time [lindex [lindex $node_end_time [lsearch -index 0 $node_end_time $parent]] 1]
+                        if {$parent_end_time >= $latency} {
                             # means that some parents must be finish its operation
                             set flag 0
                             break
@@ -162,16 +157,19 @@ proc list_mlac {res_info nodes_mobility} {
                     # puts "node to schedule: $node_to_schedule"
 
                     # assign start time to node
-                    set app [list]
-                    lappend app $node_to_schedule
+                    set app $node_to_schedule
                     lappend app $latency
                     lappend node_start_time $app
                     
                     # assign fu to node
-                    set app [list]
-                    lappend app $node_to_schedule
+                    set app $node_to_schedule
                     lappend app $fu
                     lappend node_fu $app
+
+                    # determine end time
+                    set app $node_to_schedule
+                    lappend app [expr {$latency + $fu_delay}]
+                    lappend node_end_time $app
 
                     # upgrade future occurency of fu
                     set k 1
@@ -190,8 +188,7 @@ proc list_mlac {res_info nodes_mobility} {
                         set occurency_future [lindex [lindex $avaiable_resources_1 $position] 1] ; # occurency of fu
                         incr occurency_future -1 ; #decrement occurency
 
-                        set app [list]
-                        lappend app $fu
+                        set app $fu
                         lappend app $occurency_future
                         set avaiable_resources_1 [lreplace $avaiable_resources_1 $position $position $app]
                         # puts "after res. av.(time $time): $avaiable_resources_1"
@@ -203,8 +200,7 @@ proc list_mlac {res_info nodes_mobility} {
                     incr occurency -1
 
                     # upgrade current occurency of fu
-                    set app [list]
-                    lappend app $fu
+                    set app $fu
                     lappend app $occurency
                     set avaiable_resources [lreplace $avaiable_resources $position $position $app]
                     set resources_cnt [lreplace $resources_cnt $latency $latency $avaiable_resources]
