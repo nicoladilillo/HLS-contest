@@ -247,8 +247,7 @@ proc list_mlac {res_info nodes_mobility} {
     
     set latency [llength $resources_cnt]
 
-    set myList {}
-    lappend myList $node_start_time
+    set myList  $node_start_time
     lappend myList $node_fu
     lappend myList $latency
     return $myList

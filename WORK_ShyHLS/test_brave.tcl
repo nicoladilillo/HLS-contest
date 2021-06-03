@@ -11,7 +11,7 @@ puts "Time: $elapsed_time"
 
 set schedule [lindex $list_result 0]
 set fu [lindex $list_result 1]
-set res_info [lindex $list_mlac_result 2]
+set res_info [lindex $list_result 2]
 
 puts "Resources used: $res_info"
 
