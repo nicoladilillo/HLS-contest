@@ -212,7 +212,10 @@ proc brave_opt args {
       set fu_comb [list]
       foreach operation $verif_comb {
         foreach fu $operation {
-          lappend fu_comb $fu
+          set occ [lindex $fu 1]
+          if {$occ > 0} {
+            lappend fu_comb $fu
+          } 
         }
       }
       incr final
@@ -229,10 +232,7 @@ proc brave_opt args {
   }
   #-------------------------------FINE TERZA PARTE---------------------------------
 
-  set schedule [lindex $return_value 0]
-  set latency [lindex $return_value 2]
-
-  puts "$best_res_assign - $latency"
+  set return_value [lreplace $return_value end end $best_res_assign]
 
 	return $return_value
 }

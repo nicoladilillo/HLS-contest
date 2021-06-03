@@ -75,7 +75,6 @@ proc list_mlac {res_info nodes_mobility} {
             set fus [lindex $opeation_group 1]
             set all_nodes [lindex $opeation_group 2]
             set nodes_to_schedule [lindex $opeation_group 3]
-            set node_and_mobility [list]
 
             # puts "*****"
             # puts "OPERATION: $operation"
@@ -94,11 +93,13 @@ proc list_mlac {res_info nodes_mobility} {
                     set position [lsearch -index 0 $node_start_time $parent]
                     if { $position == -1 } {
                         # means that some parents must be still scheduled
+                        # puts "for node $node ($operation) - $parent not still scheduled ($latency)"
                         set flag 0
                         break
                     } else {
                         set parent_end_time [lindex [lindex $node_end_time [lsearch -index 0 $node_end_time $parent]] 1]
                         if {$parent_end_time >= $latency} {
+                            # puts "for node $node ($operation) - $parent finish at $parent_end_time ($latency)"
                             # means that some parents must be finish its operation
                             set flag 0
                             break
@@ -109,7 +110,8 @@ proc list_mlac {res_info nodes_mobility} {
                 if { $flag == 1 } {
                     # schedule node if all parents are schedule
                     # add node to list of nodes that can be scheduled
-                    lappend nodes_to_schedule $node
+                    set position [lsearch -index 0 $nodes_mobility $node]
+                    lappend nodes_to_schedule [lindex $nodes_mobility $position]
                     # delete node in all nodes list
                     set all_nodes [lreplace $all_nodes $i $i]
                     incr i -1
@@ -120,97 +122,97 @@ proc list_mlac {res_info nodes_mobility} {
             # BINDING OPERATIONS
 
             # order nodes according mobility value of each node
-            foreach node $nodes_to_schedule {
-                set position [lsearch -index 0 $nodes_mobility $node]
-                set app [lindex $nodes_mobility $position]
-                lappend node_and_mobility $app
-            }
-            # set node_and_mobility [lsort -index 1 -integer $node_and_mobility]
-            # puts "node of $operation: $nodes_to_schedule"
-            # puts $fu
+            if {[llength $nodes_to_schedule] > 0} {
+                # puts "NODE ($operation): $nodes_to_schedule - ($latency)"
+                set nodes_to_schedule [lsort -index 1 -integer $nodes_to_schedule]
 
-            # check avaiable resources
-            set avaiable_resources [lindex $resources_cnt $latency]
-            if { [string length $avaiable_resources] == 0} {
-                # puts "Allocate new"
-                lappend resources_cnt $res_info
+                # check avaiable resources
                 set avaiable_resources [lindex $resources_cnt $latency]
-            }
-
-            # all fu dedicated avaiable in that moment
-            foreach fu $fus {
-                # if empty list of node to schedule
-                if {[llength $nodes_to_schedule] == 0} {
-                   break
+                if { [string length $avaiable_resources] == 0} {
+                    lappend resources_cnt $res_info
+                    set avaiable_resources $res_info
+                    # puts "Allocate new: $avaiable_resources"
+                    # puts "$latency vs [llength $resources_cnt]"
                 }
-                set position [lsearch -index 0 $avaiable_resources $fu] ; # position of fu
-                set occurency [lindex [lindex $avaiable_resources $position] 1] ; # occurency of fu
-                set fu_delay [get_attribute $fu delay]
-                # puts "FU:$fus - LATENCY: $latency - DELAY: $fu_delay - OCC.: $occurency"
 
-                # iterate untile more that zero occurency are avaiable
-                while { $occurency > 0 } {
-                    # delete node from node to scheduled
-                    set node_to_schedule [lindex $nodes_to_schedule 0]
-                    set nodes_to_schedule [lreplace $nodes_to_schedule 0 0]
-                    # puts "node and mobility after: $node_and_mobility"
-                    # puts "node to schedule: $node_to_schedule"
+                # all fu dedicated avaiable in that moment
+                foreach fu $fus {
 
-                    # assign start time to node
-                    set app $node_to_schedule
-                    lappend app $latency
-                    lappend node_start_time $app
-                    
-                    # assign fu to node
-                    set app $node_to_schedule
-                    lappend app $fu
-                    lappend node_fu $app
+                    set position [lsearch -index 0 $avaiable_resources $fu] ; # position of fu
+                    set occurency [lindex [lindex $avaiable_resources $position] 1] ; # occurency of fu
+                    set fu_delay [get_attribute $fu delay]
+                    # puts "FU:$fus - LATENCY: $latency - DELAY: $fu_delay - OCC.: $occurency"
 
-                    # determine end time
-                    set app $node_to_schedule
-                    lappend app [expr {$latency + $fu_delay}]
-                    lappend node_end_time $app
+                    # iterate untile more that zero occurency are avaiable
+                    while { $occurency > 0 } {
+                        # delete node from node to scheduled
+                        set node_to_schedule [lindex [lindex $nodes_to_schedule 0] 0]
+                        # puts "  remove $node_to_schedule"
+                        set nodes_to_schedule [lreplace $nodes_to_schedule 0 0]
+                        # puts "node and mobility after: $node_and_mobility"
+                        # puts "node to schedule: $node_to_schedule"
 
-                    # upgrade future occurency of fu
-                    set k 1
-                    while {$k < $fu_delay} {
-                        set time [expr {$latency+$k}]
+                        # assign start time to node
+                        set app $node_to_schedule
+                        lappend app $latency
+                        lappend node_start_time $app
+                        
+                        # assign fu to node
+                        set app $node_to_schedule
+                        lappend app $fu
+                        lappend node_fu $app
 
-                        # check avaiable resources
-                        set avaiable_resources_1 [lindex $resources_cnt $time]
-                        if { [string length $avaiable_resources_1] == 0} {
-                            # puts "allocate new for future"
-                            lappend resources_cnt $res_info
-                            # set avaiable_resources_1 [lindex $resources_cnt $time]
-                            set avaiable_resources_1 $res_info
+                        # determine end time
+                        set app $node_to_schedule
+                        lappend app [expr {$latency + $fu_delay -1}]
+                        lappend node_end_time $app
+
+                        # upgrade future occurency of fu
+                        set k 1
+                        while {$k < $fu_delay} {
+                            set time [expr {$latency+$k}]
+
+                            # check avaiable resources
+                            set avaiable_resources_1 [lindex $resources_cnt $time]
+                            if { [string length $avaiable_resources_1] == 0} {
+                                # puts "allocate new for future"
+                                lappend resources_cnt $res_info
+                                # set avaiable_resources_1 [lindex $resources_cnt $time]
+                                set avaiable_resources_1 $res_info
+                            }
+
+                            set occurency_future [lindex [lindex $avaiable_resources_1 $position] 1] ; # occurency of fu
+                            incr occurency_future -1 ; #decrement occurency
+
+                            set app $fu
+                            lappend app $occurency_future
+                            set avaiable_resources_1 [lreplace $avaiable_resources_1 $position $position $app]
+                            # puts "after res. av.(time $time): $avaiable_resources_1"
+                            set resources_cnt [lreplace $resources_cnt $time $time $avaiable_resources_1]
+
+                            incr k 1
                         }
 
-                        set occurency_future [lindex [lindex $avaiable_resources_1 $position] 1] ; # occurency of fu
-                        incr occurency_future -1 ; #decrement occurency
+                        incr occurency -1
 
+                        # upgrade current occurency of fu
                         set app $fu
-                        lappend app $occurency_future
-                        set avaiable_resources_1 [lreplace $avaiable_resources_1 $position $position $app]
-                        # puts "after res. av.(time $time): $avaiable_resources_1"
-                        set resources_cnt [lreplace $resources_cnt $time $time $avaiable_resources_1]
+                        lappend app $occurency
+                        set avaiable_resources [lreplace $avaiable_resources $position $position $app]
+                        set resources_cnt [lreplace $resources_cnt $latency $latency $avaiable_resources]
 
-                        incr k 1
-                    }
-
-                    incr occurency -1
-
-                    # upgrade current occurency of fu
-                    set app $fu
-                    lappend app $occurency
-                    set avaiable_resources [lreplace $avaiable_resources $position $position $app]
-                    set resources_cnt [lreplace $resources_cnt $latency $latency $avaiable_resources]
+                        # if empty list of node to schedule
+                        if {[llength $nodes_to_schedule] == 0} {
+                            break
+                        }
+                    }  
 
                     # if empty list of node to schedule
                     if {[llength $nodes_to_schedule] == 0} {
                         break
-                    }
-                }                   
-            }
+                    }                 
+                }
+            } 
 
             set opeation_group [lreplace $opeation_group 2 2 $all_nodes]
             set opeation_group [lreplace $opeation_group 3 3 $nodes_to_schedule]
@@ -219,22 +221,31 @@ proc list_mlac {res_info nodes_mobility} {
             # check if all nodes have been scheduled
             if {[llength $all_nodes] > 0} {
                 set flag_final 0
+                # puts "$latency - $operation - $all_nodes - $nodes_to_schedule"
             }
         }
-        
+
         if {$flag_final == 1} { 
             set done 0 
-            set latency [llength $resources_cnt]
         } else {
             incr latency
         }
 
+        # if {$latency == 30} {
+        #     puts ""
+        #     puts $resources_cnt
+        #     puts ""
+        #     puts "START TIME"
+        #     foreach node $node_start_time {
+        #         set operation [get_attribute [lindex $node 0] operation]
+        #         puts "$node - $operation"
+        #     }
+        #     break
+        # }
+
     }
     
-    #########################
-    # TO DO: this works too #
-    #########################
-    # set latancy [llength $resources_cnt]
+    set latency [llength $resources_cnt]
 
     set myList {}
     lappend myList $node_start_time
