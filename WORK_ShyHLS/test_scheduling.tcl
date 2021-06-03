@@ -8,7 +8,7 @@ source ./tcl_scripts/scheduling/mobility.tcl
 # mobility for each node
 set nodes_mobility [mobility]
 
-set res_info {{L4 0} {L5 0} {L6 6} {L0 0} {L1 0} {L2 22} {L10 0} {L11 0} {L12 50} {L13 0} {L14 0} {L15 2} } 
+set res_info {{L4 1} {L5 2} {L0 5} {L1 1} {L10 12} {L11 1} {L14 1}} 
 
 set start_time [clock milliseconds]
 set list_mlac_result [list_mlac $res_info $nodes_mobility]
@@ -19,7 +19,7 @@ puts "Time: $elapsed_time"
 # puts $list_mlac_result
 set schedule [lindex $list_mlac_result 0]
 set fu [lindex $list_mlac_result 1]
-set res_info [lindex $list_mlac_result 2]
+set latency [lindex $list_mlac_result 2]
 
 puts ""
 puts "##########"

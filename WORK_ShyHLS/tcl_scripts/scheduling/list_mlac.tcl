@@ -4,7 +4,7 @@
 
 proc list_mlac {res_info nodes_mobility} {
     # RETURN PARAMETER
-    # list of node and assign start time: <node, start_time>
+    # list of node and assign start time and end time: <node, start_time>
     set node_start_time [list]
     set node_end_time [list]
     # list of node and assign fu: <node, fu>
@@ -231,23 +231,12 @@ proc list_mlac {res_info nodes_mobility} {
             incr latency
         }
 
-        # if {$latency == 30} {
-        #     puts ""
-        #     puts $resources_cnt
-        #     puts ""
-        #     puts "START TIME"
-        #     foreach node $node_start_time {
-        #         set operation [get_attribute [lindex $node 0] operation]
-        #         puts "$node - $operation"
-        #     }
-        #     break
-        # }
-
     }
     
     set latency [llength $resources_cnt]
 
-    set myList  $node_start_time
+    set myList [list]
+    lappend myList $node_start_time
     lappend myList $node_fu
     lappend myList $latency
     return $myList

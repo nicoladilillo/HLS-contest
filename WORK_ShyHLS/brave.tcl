@@ -24,6 +24,7 @@ proc brave_opt args {
   set list_node_op [list]
   set count_operation [list]
   set tot_operations 0
+  set best_res_assign 0
 
   # mobility for each node
   set nodes_mobility [mobility]
@@ -219,14 +220,19 @@ proc brave_opt args {
         }
       }
       incr final
-      # puts "$fu_comb - $vett - $final"
 
       set list_mlac_result [list_mlac $fu_comb $nodes_mobility]
       set latency [lindex $list_mlac_result 2]
       if {$latency < $best_latency} {
+        # puts ""
+        # puts "OLD ($best_latency): $best_res_assign"
+        # puts "NEW ($latency): $fu_comb"
         set best_res_assign $fu_comb
+        set best_latency $latency
         set return_value $list_mlac_result
       }
+
+      # puts "$fu_comb - $best_latency vs $latency"
       
     }
   }
