@@ -123,8 +123,6 @@ proc list_mlac {res_info nodes_mobility} {
         if { $position == -1 } {
             set app $op
             lappend app $operation
-            lappend app {} ; # all_node
-            lappend app {} ; # node_to_schedule
             lappend operations $app
         } else {
             set fu [lindex [lindex $operations $position] 1]
@@ -135,6 +133,7 @@ proc list_mlac {res_info nodes_mobility} {
             set operations [lreplace $operations $position $position $app]
         }
     }
+    # puts $operations
 
     # group each node for type of operation
     foreach node [get_nodes] {
@@ -155,8 +154,7 @@ proc list_mlac {res_info nodes_mobility} {
         }
         set all_node [lindex $cell 2]
         # puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu - NODE: $all_node"
-    }
-
+    }    
     set done 1
     # untill all node are scheduled
     while {$done} {
@@ -323,7 +321,6 @@ proc list_mlac {res_info nodes_mobility} {
         } else {
             incr latency
         }
-
     }
     
     set latency [llength $resources_cnt]
@@ -334,7 +331,7 @@ proc list_mlac {res_info nodes_mobility} {
     lappend myList $latency
     return $myList
 
-}
+  }
 
 proc brave_opt args {
   array set options {-total_area 0}
@@ -402,24 +399,41 @@ proc brave_opt args {
   # puts "Total operation: $tot_operations"
 
   #----------------------------FINE PRIMA PARTE---------------------------------
-  #count_operation contain the occurrence of the operation
-  #fu_operation contain all the fu for that operation 
+  # count_operation contain the occurrence of the operation
+  # fu_operation contain all the fu for that operation 
   #------------------------ SECONDA PARTE----------------------------------
   set comb_general [list]
   set tot_comb 1
+  set total_area_app $total_area
   #iterate for each operation
   for {set i 0} {$i < [llength $count_operation]} {incr i} {
     set final 0
     set vett [list]
     set op [lindex $list_node_op $i]
+    # order fus due to decreasing area
     set fus [get_lib_fus_from_op $op]
+    set fus_sort [list] 
+    foreach fu $fus {
+      set app $fu
+      lappend app [get_attribute $fu area]
+      lappend fus_sort $app
+    }
+    set fus_sort [lsort -index 1 -integer -decreasing $fus_sort] 
+    set fus [list]
+    foreach fu $fus_sort {
+      lappend fus [lindex $fu 0]
+    }
+    
     set leng [llength $fus]
+
     # total amount of operation
     set count_operation_operation [lindex $count_operation $i]
-    # puts ""
-    # puts "$op - $count_operation_operation"
+    puts ""
+    puts "$op - $count_operation_operation"
+    puts $fus_sort
+    puts $fus
 
-    #vector of tot zeros, one for each fu
+    # vector of tot zeros, one for each fu
     set fus_area [list]
     set area_avg 0
     set v 0
@@ -436,22 +450,72 @@ proc brave_opt args {
       incr area_avg $fu_area
       incr v
     }
+    # puts $fus
 		set min_fu_area [lindex [lindex $fus_area end] 1]
-    set area_avg [expr {$area_avg/$v}]
+    set max_fu_area [lindex [lindex $fus_area 0] 1]
+    set area_avg [expr {$area_avg/$v}] ; # avg of fu area
+    
 		# puts "$fus_area => min($min_fu_area) avg ($area_avg)"
-    if {$count_operation_operation <= 5} {
-      set memory_needed_max [expr [lindex [lindex $fus_area 0] 1]*$count_operation_operation]
+    # caluculate the min and the max number of fu for the corresponding operation
+    if {$count_operation_operation <= [expr {$total_area_app/1000.0*5}]} {
+      if {$max_fu_area > [expr {$total_area_app/10}] } {
+        set memory_needed_max [expr $min_fu_area*$count_operation_operation]
+      } else {
+        set memory_needed_max [expr $max_fu_area*$count_operation_operation]
+      }
+      set total_area_app [expr {$total_area_app-$memory_needed_max}]
+      set start 1
+      set end $count_operation_operation
     } else {
-      set memory_needed_max [expr {$area_avg*$count_operation_operation*$count_operation_operation/$tot_operations*4}]
+      # set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}]
+
+      # critera for allocated memory formulated after tests
+      if {[expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}] > [expr {$total_area_app/2}] && [expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.5} {
+        set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.2}]
+      } elseif {[expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}] > [expr {$total_area_app/2}] && [expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.3} { 
+        set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.1}]
+      }  elseif {[expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.25} {
+        set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.2}]
+      } else {
+        set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}]
+      }
+
+      set start [expr {$memory_needed_max/$area_avg/2}]
+      if { $start < 1 } {
+        set start 1
+      }
+      if {$start > [expr {$count_operation_operation/4.0}]} {
+        set start [expr {$count_operation_operation/4.0}]
+        set end [expr {$memory_needed_max/$area_avg}]
+        if {$end > [expr $count_operation_operation/10.0*7] } { 
+            set end [expr $count_operation_operation/10.0*7]
+        } elseif { $end < $start } {
+          set end [expr $start*3]
+        }
+      } else {
+        set end [expr {$start*3}]
+        if {$end > [expr {$count_operation_operation/3.0*2}]} { 
+          set end [expr {$memory_needed_max/$area_avg}]
+          if {$end > [expr $count_operation_operation/10.0*7]} { 
+            set end [expr $count_operation_operation/10.0*7]
+          }
+        }
+      }
+      if {$end <  $start } {
+        set end $start
+      }
+
+      if {$memory_needed_max < $min_fu_area} {
+        set memory_needed_max $min_fu_area
+      }
     }
-
-    if {$memory_needed_max == 0 || $memory_needed_max <= $min_fu_area} {
-      set memory_needed_max [lindex [lindex $fus_area 0] 1]
-    } elseif {$memory_needed_max > $total_area} {
-      set memory_needed_max [expr {0.75*$total_area}]
-    } 
-
-    # puts "$fus - $leng => $count_operation_operation ($memory_needed_max on $total_area)"
+    # min area for combination 
+    set min_memory [expr {$memory_needed_max/3*2}]
+    if {$min_memory < $min_fu_area || [expr $max_fu_area-$min_fu_area] > $min_fu_area} {
+      set min_memory $min_fu_area
+    }
+    puts "$fus - $leng => $count_operation_operation ($min_memory-$memory_needed_max on $total_area)"
+    puts "$start to $end"
 
     set comb_operation [list]
     set comb_unique [list]
@@ -466,15 +530,8 @@ proc brave_opt args {
       lappend comb_unique $app
     } 
   
-    set start [expr {($count_operation_operation +0.0)/(($total_area/$memory_needed_max)+1)/($tot_operations*$area_avg/$total_area*3)}]    
-    if {$start < 1.0 || $start > $count_operation_operation} { set start 1 }
-    set end [expr {$start*4}]
-    if {$end > [expr {0.8*$count_operation_operation}]} { 
-      set end [expr {0.8*$count_operation_operation}]
-      if {$end < $start} { set end $start }
-    }
-    # puts "$start to $end"
-    for {set j $start} {$j <= $end} {incr j} {
+    # just one cycle, useless consider value of node lessere than the max
+    for {set j $end} {$j <= $end} {incr j} {
       set j [expr int($j)]
       set done 0
       # finish of the combination when the last element reach max area delay
@@ -484,7 +541,7 @@ proc brave_opt args {
 
         while { $flag == 0 } {
           set fu_area_comb [lindex [lindex $fus_area $index] 1]
-          # aggiorna le aree dentro
+          
           if { [expr {$fu_area_comb+$area_comb}] <= $memory_needed_max && $occ_comb < $j} {
             set comb [lindex $comb_unique $index]
             set occ [lindex $comb 1]
@@ -525,13 +582,16 @@ proc brave_opt args {
             set done 1
           }
         }
-
-        if { [expr {$memory_needed_max-$area_comb}] < $min_fu_area || $occ_comb == $j} {
-          incr final
+        
+        #puts "$area_comb vs $min_memory"
+        if { $area_comb >= $min_memory || $occ_comb == $j} {
           set app $area_comb
           lappend app $comb_unique
-          # puts "$app - $final -$j - $occ_comb - $memory_needed_max - $min_fu_area "
-          lappend comb_operation $app
+          if {[lsearch $comb_operation $comb_unique] == -1} {
+            incr final
+            # puts "$app - $final -$j - $occ_comb - $memory_needed_max - $min_fu_area "
+            lappend comb_operation $app
+          }
         }
       }
     }
@@ -541,26 +601,31 @@ proc brave_opt args {
     # foreach comb [lsort -index 0 -integer -dec $comb_operation] {
     #   puts $comb
     # }
-    # puts "Tot combinazioni: $final"
+    puts "Tot combinazioni: $final"
     set tot_comb [expr {$tot_comb*$final}]
   }
 
-  # puts "Combinazioni totali: $tot_comb"
-
-#------------------------------FINE SECONDA PARTE-----------------------------------------------
-#OTTENGO UNA LISTA DI ELEMENTI, OGNI ELEMENTO è UNA LISTA DI COMBINAZIONI PER OGNI OPERAZIONE
-#comb_general contiene tutte le combinazioni per ogni operazione, adesso bisogna combinare questi 
+  puts "Combinazioni totali: $tot_comb"
+  
+#------------------------------ FINE SECONDA PARTE -----------------------------------------------
+#---------------------------------- TERZA PARTE --------------------------------------------------
+  # calculated wich is the max value of area that can be reach
   set memory_needed_max_tot 0
+  set memory_min 0
   foreach max_comb $comb_general {
     set area_max_comb [lindex [lindex $max_comb 0] 0]
+    set area_min_comb  [lindex [lindex $max_comb end] 0]
     set memory_needed_max_tot [expr {$memory_needed_max_tot+$area_max_comb}]
+    set memory_min [expr {$memory_min+$area_min_comb}]
     # puts $area_max_comb
   }
-  # puts $memory_needed_max_tot
+  puts $memory_needed_max_tot
+  puts $memory_min
 
   if {$total_area > $memory_needed_max_tot} {
     set total_area [expr $memory_needed_max_tot*0.90]
   }
+
   # puts $total_area 
   #  set the index of the operand
   set vett [list]
@@ -579,8 +644,10 @@ proc brave_opt args {
   # set verif_comb [list]
   #the vector begin with 000--000-1
   set flag 0
+  set flag_1 0
   set final 0
-  set value 30000
+  # max reach before to exit from cycle
+  set value [expr {40000*($total_area/1000.00)}]
   set same [expr 0.0]
 
   set best_latency 10000000
@@ -599,7 +666,6 @@ proc brave_opt args {
     }
 
     
-    # if {[lindex $vett $index] == 50} {break;}
     if {$flag == 0} {
       #vett[index]++
       set tmp [lindex $vett $index]
@@ -615,6 +681,7 @@ proc brave_opt args {
       #VERIFICA!!!
       set fu_comb [list]
       set area 0
+      set min_area 0
       foreach operation $verif_comb {
         # puts "op $operation"
         set area_seq  [lindex $operation 0]
@@ -639,42 +706,35 @@ proc brave_opt args {
          # set verif_comb [lreplace $verif_comb $i $i [lindex [lindex $comb_general $i] tmp]]
         }
 
-        set same [expr {$same+0.1}]
-        if { $same >= $value } {
-          set flag 1
-        }
+        set same [expr {$same+0.3}]
       } elseif { $area <= $total_area } {
-        
+        set flag_1 1
         incr final
         set list_mlac_result [list_mlac $fu_comb $nodes_mobility]
         set latency [lindex $list_mlac_result 2]
         if {$latency < $best_latency} {
-          # puts ""
-          # puts "OLD ($best_latency): $best_res_assign"
-          # puts "NEW ($latency): $fu_comb"
-          # puts "vett: $vett"
-          # puts $value
+          puts ""
+          puts "OLD ($best_latency): $best_res_assign"
+          puts "NEW ($latency): $fu_comb"
+          puts "vett: $vett"
+          puts $value
           set best_res_assign $fu_comb
           set best_latency $latency
           set return_value $list_mlac_result
-          set value [expr {$value-(5*$same)}]
+          set value [expr {$value-($total_area/1000.00*5000)}]
           set same [expr 0.0]
         } else {
           set same [expr {$same+1.0}]
-          if { $same >= $value } {
-            set flag 1
-          }
         }
 
       } else {
-        set same [expr {$same+0.1}]
-        if { $same >= $value } {
-          set flag 1
-        }
+        set same [expr {$same+0.3}]
       }
       
-      # puts "$same - $value"
-      # puts "$fu_comb - $area - $final"      
+      if { $same >= $value && $flag_1 == 1} {
+          set flag 1
+      }
+      # puts "$same - $value - $fu_comb - $area - $final -$vett"      
     }
   }
   #-------------------------------FINE TERZA PARTE---------------------------------

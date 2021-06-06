@@ -27,8 +27,6 @@ proc list_mlac {res_info nodes_mobility} {
         if { $position == -1 } {
             set app $op
             lappend app $operation
-            lappend app {} ; # all_node
-            lappend app {} ; # node_to_schedule
             lappend operations $app
         } else {
             set fu [lindex [lindex $operations $position] 1]
@@ -39,7 +37,7 @@ proc list_mlac {res_info nodes_mobility} {
             set operations [lreplace $operations $position $position $app]
         }
     }
-
+    puts $operations
     # group each node for type of operation
     foreach node [get_nodes] {
         set op [get_attribute $node operation]
@@ -50,16 +48,16 @@ proc list_mlac {res_info nodes_mobility} {
         set operation [lreplace $operation 2 2 $all_node_op]
         set operations [lreplace $operations $position $position $operation]
     }
-
+    
     # print all possible group created
-    # foreach cell $operations {
-    #     foreach fu [lindex $cell 1] {
-    #         set op [lindex $cell 0]
-    #         set delay_fu [get_attribute $fu delay]
-    #     }
-    #     set all_node [lindex $cell 2]
-    #     puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu - NODE: $all_node"
-    # }
+    foreach cell $operations {
+        foreach fu [lindex $cell 1] {
+            set op [lindex $cell 0]
+            set delay_fu [get_attribute $fu delay]
+        }
+        set all_node [lindex $cell 2]
+        # puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu - NODE: $all_node"
+    }
 
     set done 1
     # untill all node are scheduled
@@ -79,9 +77,6 @@ proc list_mlac {res_info nodes_mobility} {
             # puts "*****"
             # puts "OPERATION: $operation"
 
-            ##########################################################################
-            ### TO DO check if, when some node can't be scheduled, for can carry on ##       
-            ##########################################################################
             set length [llength $all_nodes]
             for {set i 0} {$i < $length} {incr i} {
                 set node [lindex $all_nodes $i]    
@@ -240,5 +235,4 @@ proc list_mlac {res_info nodes_mobility} {
     lappend myList $node_fu
     lappend myList $latency
     return $myList
-
 }

@@ -82,9 +82,110 @@ proc calculate_time {} {
 
 set total_score 0.0
 
+# remove_design
+# puts "read_design ./data/DFGs/fir.dot"
+# read_design ./data/DFGs/fir.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/collapse_pyr_dfg__113.dot"
+# read_design ./data/DFGs/collapse_pyr_dfg__113.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/motion_vectors_dfg__7.dot"
+# read_design ./data/DFGs/motion_vectors_dfg__7.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/arf.dot"
+# read_design ./data/DFGs/arf.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/ewf.dot"
+# read_design ./data/DFGs/ewf.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/feedback_points_dfg__7.dot"
+# read_design ./data/DFGs/feedback_points_dfg__7.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/h2v2_smooth_downsample_dfg__6.dot"
+# read_design ./data/DFGs/h2v2_smooth_downsample_dfg__6.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/horner_bezier_surf_dfg__12.dot"
+# read_design ./data/DFGs/horner_bezier_surf_dfg__12.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/idctcol_dfg__3.dot"
+# read_design ./data/DFGs/idctcol_dfg__3.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/interpolate_aux_dfg__12.dot"
+# read_design ./data/DFGs/interpolate_aux_dfg__12.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+
 remove_design
-puts "read_design ./data/DFGs/fir.dot"
-read_design ./data/DFGs/fir.dot
+puts "read_design ./data/DFGs/invert_matrix_general_dfg__3.dot"
+read_design ./data/DFGs/invert_matrix_general_dfg__3.dot
 
 set score [calculate_time]
 set total_score [expr {$total_score+$score}]
@@ -92,25 +193,55 @@ set total_score [expr {$total_score+$score}]
 puts ""
 puts ""
 
-remove_design
-puts "read_design ./data/DFGs/collapse_pyr_dfg__113.dot"
-read_design ./data/DFGs/collapse_pyr_dfg__113.dot
+# remove_design
+# puts "read_design ./data/DFGs/jpeg_fdct_islow_dfg__6.dot"
+# read_design ./data/DFGs/jpeg_fdct_islow_dfg__6.dot
 
-set score [calculate_time]
-set total_score [expr {$total_score+$score}]
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
 
-puts ""
-puts ""
+# puts ""
+# puts ""
 
-remove_design
-puts "read_design ./data/DFGs/motion_vectors_dfg__7.dot"
-read_design ./data/DFGs/motion_vectors_dfg__7.dot
+# remove_design
+# puts "read_design ./data/DFGs/jpeg_idct_ifast_dfg__6.dot"
+# read_design ./data/DFGs/jpeg_idct_ifast_dfg__6.dot
 
-set score [calculate_time]
-set total_score [expr {$total_score+$score}]
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
 
-puts ""
-puts ""
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/matmul_dfg__3.dot"
+# read_design ./data/DFGs/matmul_dfg__3.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/smooth_color_z_triangle_dfg__31.dot"
+# read_design ./data/DFGs/smooth_color_z_triangle_dfg__31.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
+
+# remove_design
+# puts "read_design ./data/DFGs/write_bmp_header_dfg__7.dot"
+# read_design ./data/DFGs/write_bmp_header_dfg__7.dot
+
+# set score [calculate_time]
+# set total_score [expr {$total_score+$score}]
+
+# puts ""
+# puts ""
 
 puts ""
 puts "TOTAL SCORE: $total_score"
