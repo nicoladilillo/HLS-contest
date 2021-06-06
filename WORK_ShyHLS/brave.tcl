@@ -428,10 +428,10 @@ proc brave_opt args {
 
     # total amount of operation
     set count_operation_operation [lindex $count_operation $i]
-    puts ""
-    puts "$op - $count_operation_operation"
-    puts $fus_sort
-    puts $fus
+    # puts ""
+    # puts "$op - $count_operation_operation"
+    # puts $fus_sort
+    # puts $fus
 
     # vector of tot zeros, one for each fu
     set fus_area [list]
@@ -467,18 +467,18 @@ proc brave_opt args {
       set start 1
       set end $count_operation_operation
     } else {
-      # set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}]
+      set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}]
 
       # critera for allocated memory formulated after tests
-      if {[expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}] > [expr {$total_area_app/2}] && [expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.5} {
-        set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.2}]
-      } elseif {[expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}] > [expr {$total_area_app/2}] && [expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.3} { 
-        set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.1}]
-      }  elseif {[expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.25} {
-        set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.2}]
-      } else {
-        set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}]
-      }
+      # if {[expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}] > [expr {$total_area_app/2}] && [expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.5} {
+      #   set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.2}]
+      # } elseif {[expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}] > [expr {$total_area_app/2}] && [expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.3} { 
+      #   set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.1}]
+      # }  elseif {[expr {(0.0+$count_operation_operation)/$tot_operations}] < 0.25} {
+      #   set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.2}]
+      # } else {
+      #   set memory_needed_max [expr {$total_area_app*$count_operation_operation/$tot_operations*1.3}]
+      # }
 
       set start [expr {$memory_needed_max/$area_avg/2}]
       if { $start < 1 } {
@@ -514,8 +514,8 @@ proc brave_opt args {
     if {$min_memory < $min_fu_area || [expr $max_fu_area-$min_fu_area] > $min_fu_area} {
       set min_memory $min_fu_area
     }
-    puts "$fus - $leng => $count_operation_operation ($min_memory-$memory_needed_max on $total_area)"
-    puts "$start to $end"
+    # puts "$fus - $leng => $count_operation_operation ($min_memory-$memory_needed_max on $total_area)"
+    # puts "$start to $end"
 
     set comb_operation [list]
     set comb_unique [list]
@@ -601,11 +601,11 @@ proc brave_opt args {
     # foreach comb [lsort -index 0 -integer -dec $comb_operation] {
     #   puts $comb
     # }
-    puts "Tot combinazioni: $final"
+    # puts "Tot combinazioni: $final"
     set tot_comb [expr {$tot_comb*$final}]
   }
 
-  puts "Combinazioni totali: $tot_comb"
+  # puts "Combinazioni totali: $tot_comb"
   
 #------------------------------ FINE SECONDA PARTE -----------------------------------------------
 #---------------------------------- TERZA PARTE --------------------------------------------------
@@ -619,8 +619,8 @@ proc brave_opt args {
     set memory_min [expr {$memory_min+$area_min_comb}]
     # puts $area_max_comb
   }
-  puts $memory_needed_max_tot
-  puts $memory_min
+  # puts $memory_needed_max_tot
+  # puts $memory_min
 
   if {$total_area > $memory_needed_max_tot} {
     set total_area [expr $memory_needed_max_tot*0.90]
@@ -713,11 +713,11 @@ proc brave_opt args {
         set list_mlac_result [list_mlac $fu_comb $nodes_mobility]
         set latency [lindex $list_mlac_result 2]
         if {$latency < $best_latency} {
-          puts ""
-          puts "OLD ($best_latency): $best_res_assign"
-          puts "NEW ($latency): $fu_comb"
-          puts "vett: $vett"
-          puts $value
+          # puts ""
+          # puts "OLD ($best_latency): $best_res_assign"
+          # puts "NEW ($latency): $fu_comb"
+          # puts "vett: $vett"
+          # puts $value
           set best_res_assign $fu_comb
           set best_latency $latency
           set return_value $list_mlac_result
