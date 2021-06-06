@@ -124,7 +124,7 @@ proc list_mlac {res_info nodes_mobility} {
             # order nodes according mobility value of each node
             if {[llength $nodes_to_schedule] > 0} {
                 # puts "NODE ($operation): $nodes_to_schedule - ($latency)"
-                set nodes_to_schedule [lsort -index 1 -integer $nodes_to_schedule]
+                set nodes_to_schedule [lsort -index 1 -integer -decreasing $nodes_to_schedule]
 
                 # check avaiable resources
                 set avaiable_resources [lindex $resources_cnt $latency]

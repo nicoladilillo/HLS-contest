@@ -8,7 +8,7 @@ source ./tcl_scripts/scheduling/mobility.tcl
 # mobility for each node
 set nodes_mobility [mobility]
 
-set res_info {{L4 1} {L5 2} {L0 5} {L1 1} {L10 12} {L11 1} {L14 1}} 
+set res_info {{L13 1} {L0 2} {L1 1} {L4 3} {L6 1} {L10 11} {L12 6}} 
 
 set start_time [clock milliseconds]
 set list_mlac_result [list_mlac $res_info $nodes_mobility]

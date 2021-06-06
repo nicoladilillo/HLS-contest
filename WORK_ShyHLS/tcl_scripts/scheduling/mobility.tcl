@@ -10,19 +10,13 @@ proc mobility {} {
     set asap_schedule [asap]
 
     # find minimum lambda
-    set lambda 0
-    foreach pair $asap_schedule {
-        set node_id [lindex $pair 0]
-        set start_time [lindex $pair 1]
-        set node_operation [get_attribute $node_id operation]
-        set fu [get_lib_fu_from_op $node_operation]
-        set delay_operation [get_attribute $fu delay]
-        # puts "Node: $node_id is $node_operation starts @ $start_time + $delay_operation"
-        set node_end_time [expr $start_time + $delay_operation]
-        if { $lambda < $node_end_time } {
-            set lambda $node_end_time
-        }
-    }
+    set pair [lindex $asap_schedule end]
+    set node_id [lindex $pair 0]
+    set start_time [lindex $pair 1]
+    set node_operation [get_attribute $node_id operation]
+    set fu [get_lib_fu_from_op $node_operation]
+    set delay_operation [get_attribute $fu delay]
+    set lambda [expr $start_time + $delay_operation]
 
     # puts $lambda
 

@@ -1,5 +1,340 @@
-source ./tcl_scripts/scheduling/list_mlac.tcl
-source ./tcl_scripts/scheduling/mobility.tcl
+proc asap {} {
+  
+  
+  set node_start_time [list]
+
+  foreach node [get_sorted_nodes] {
+    set start_time 1
+    foreach parent [get_attribute $node parents] {
+      set parent_op [get_attribute $parent operation]
+      set fu [lindex [get_lib_fus_from_op $parent_op] 0]
+      set parent_delay [get_attribute $fu delay]
+      set idx_parent_start [lsearch -index 0 $node_start_time $parent]
+      set parent_start_time [lindex [lindex $node_start_time $idx_parent_start] 1]
+      set parent_end_time [expr $parent_start_time + $parent_delay]
+      if { $parent_end_time > $start_time } {
+        set start_time $parent_end_time
+      }
+    }
+    lappend node_start_time "$node $start_time"
+  }
+
+  return $node_start_time
+
+}
+
+proc alap {lambda} {
+    
+    set node_start_time [list]
+
+    foreach node [lreverse [get_sorted_nodes]] {
+        # get delay of node that we re considering
+        set op [get_attribute $node operation]
+        set fu [lindex [get_lib_fus_from_op $op] 0]
+        set delay [get_attribute $fu delay]
+
+        set start_time [expr $lambda - $delay]
+        foreach children [get_attribute $node children] {
+            # use the schedule that i have already parse
+
+            # take id of children that has been already scheduled
+            set idx_children_start [lsearch -index 0 $node_start_time $children]
+            # take value of start time
+            set children_start_time [lindex [lindex $node_start_time $idx_children_start] 1]
+
+            if { [expr $start_time + $delay] > $children_start_time } {
+                set start_time [expr $children_start_time - $delay]
+            }
+        }
+        lappend node_start_time "$node $start_time"
+    }
+
+  return $node_start_time
+
+}
+
+proc mobility {} {
+
+    set asap_schedule [asap]
+
+    # find minimum lambda
+    set lambda 0
+    foreach pair $asap_schedule {
+        set node_id [lindex $pair 0]
+        set start_time [lindex $pair 1]
+        set node_operation [get_attribute $node_id operation]
+        set fu [get_lib_fu_from_op $node_operation]
+        set delay_operation [get_attribute $fu delay]
+        # puts "Node: $node_id is $node_operation starts @ $start_time + $delay_operation"
+        set node_end_time [expr $start_time + $delay_operation]
+        if { $lambda < $node_end_time } {
+            set lambda $node_end_time
+        }
+    }
+
+    # puts $lambda
+
+    set alap_schedule [alap $lambda]
+    # foreach pair $alap_schedule {
+    #     set node_id [lindex $pair 0]
+    #     set start_time [lindex $pair 1]
+    #     puts "Node: $node_id starts @ $start_time"
+    # }
+
+    set mobility_result [list]
+    foreach pair $asap_schedule {
+        set node_id [lindex $pair 0]
+        set asap_time [lindex $pair 1]
+        set position [lsearch -index 0 $alap_schedule $node_id]
+        set alap_time [lindex [lindex $alap_schedule $position] 1]
+        set mobility [expr $alap_time-$asap_time]
+        set app [list]
+        lappend app $node_id
+        lappend app $mobility
+        lappend mobility_result $app
+        # puts "$node_id @mobility $mobility = $alap_time - $asap_time"
+    }
+
+    return $mobility_result
+}
+
+proc list_mlac {res_info nodes_mobility} {
+    # RETURN PARAMETER
+    # list of node and assign start time and end time: <node, start_time>
+    set node_start_time [list]
+    set node_end_time [list]
+    # list of node and assign fu: <node, fu>
+    set node_fu [list]
+    # latency total
+    set latency 0
+
+    # WORKING PARAMETER
+    # use to see amount of resources avaiable
+    set resources_cnt [list]
+
+    # PREEPARING PHASE
+
+    # group fus for operation
+    set operations [list]
+    foreach operation $res_info {
+        set operation [lindex $operation 0]
+        set op [get_attribute $operation operation]
+        set position [lsearch -index 0 $operations $op]
+        if { $position == -1 } {
+            set app $op
+            lappend app $operation
+            lappend app {} ; # all_node
+            lappend app {} ; # node_to_schedule
+            lappend operations $app
+        } else {
+            set fu [lindex [lindex $operations $position] 1]
+            # puts $fu
+            lappend fu $operation
+            set app $op
+            lappend app $fu
+            set operations [lreplace $operations $position $position $app]
+        }
+    }
+
+    # group each node for type of operation
+    foreach node [get_nodes] {
+        set op [get_attribute $node operation]
+        set position [lsearch -index 0 $operations $op]
+        set operation [lindex $operations $position]
+        set all_node_op [lindex $operation 2]
+        lappend all_node_op $node
+        set operation [lreplace $operation 2 2 $all_node_op]
+        set operations [lreplace $operations $position $position $operation]
+    }
+    
+    # print all possible group created
+    foreach cell $operations {
+        foreach fu [lindex $cell 1] {
+            set op [lindex $cell 0]
+            set delay_fu [get_attribute $fu delay]
+        }
+        set all_node [lindex $cell 2]
+        # puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu - NODE: $all_node"
+    }
+
+    set done 1
+    # untill all node are scheduled
+    while {$done} {
+        set flag_final 1
+        for {set j 0} {$j < [llength $operations]} {incr j} {
+
+            # LOOKINF FOR NODE THAT CAN BE SCHEDULED WITH THIS OPERATION
+
+            # starting at each cycle
+            set opeation_group [lindex $operations $j]
+            set operation [lindex $opeation_group 0]
+            set fus [lindex $opeation_group 1]
+            set all_nodes [lindex $opeation_group 2]
+            set nodes_to_schedule [lindex $opeation_group 3]
+
+            # puts "*****"
+            # puts "OPERATION: $operation"
+
+            set length [llength $all_nodes]
+            for {set i 0} {$i < $length} {incr i} {
+                set node [lindex $all_nodes $i]    
+            
+                # same operation considered in the current for
+                set flag 1
+                # lookig for node with all parents scheduled
+                foreach parent [get_attribute $node parents] {
+                    set position [lsearch -index 0 $node_start_time $parent]
+                    if { $position == -1 } {
+                        # means that some parents must be still scheduled
+                        # puts "for node $node ($operation) - $parent not still scheduled ($latency)"
+                        set flag 0
+                        break
+                    } else {
+                        set parent_end_time [lindex [lindex $node_end_time [lsearch -index 0 $node_end_time $parent]] 1]
+                        if {$parent_end_time >= $latency} {
+                            # puts "for node $node ($operation) - $parent finish at $parent_end_time ($latency)"
+                            # means that some parents must be finish its operation
+                            set flag 0
+                            break
+                        }
+                    }
+                }
+
+                if { $flag == 1 } {
+                    # schedule node if all parents are schedule
+                    # add node to list of nodes that can be scheduled
+                    set position [lsearch -index 0 $nodes_mobility $node]
+                    lappend nodes_to_schedule [lindex $nodes_mobility $position]
+                    # delete node in all nodes list
+                    set all_nodes [lreplace $all_nodes $i $i]
+                    incr i -1
+                    incr length -1
+                }
+            }
+
+            # BINDING OPERATIONS
+
+            # order nodes according mobility value of each node
+            if {[llength $nodes_to_schedule] > 0} {
+                # puts "NODE ($operation): $nodes_to_schedule - ($latency)"
+                set nodes_to_schedule [lsort -index 1 -integer -decreasing $nodes_to_schedule]
+
+                # check avaiable resources
+                set avaiable_resources [lindex $resources_cnt $latency]
+                if { [string length $avaiable_resources] == 0} {
+                    lappend resources_cnt $res_info
+                    set avaiable_resources $res_info
+                    # puts "Allocate new: $avaiable_resources"
+                    # puts "$latency vs [llength $resources_cnt]"
+                }
+
+                # all fu dedicated avaiable in that moment
+                foreach fu $fus {
+
+                    set position [lsearch -index 0 $avaiable_resources $fu] ; # position of fu
+                    set occurency [lindex [lindex $avaiable_resources $position] 1] ; # occurency of fu
+                    set fu_delay [get_attribute $fu delay]
+                    # puts "FU:$fus - LATENCY: $latency - DELAY: $fu_delay - OCC.: $occurency"
+
+                    # iterate untile more that zero occurency are avaiable
+                    while { $occurency > 0 } {
+                        # delete node from node to scheduled
+                        set node_to_schedule [lindex [lindex $nodes_to_schedule 0] 0]
+                        # puts "  remove $node_to_schedule"
+                        set nodes_to_schedule [lreplace $nodes_to_schedule 0 0]
+                        # puts "node and mobility after: $node_and_mobility"
+                        # puts "node to schedule: $node_to_schedule"
+
+                        # assign start time to node
+                        set app $node_to_schedule
+                        lappend app $latency
+                        lappend node_start_time $app
+                        
+                        # assign fu to node
+                        set app $node_to_schedule
+                        lappend app $fu
+                        lappend node_fu $app
+
+                        # determine end time
+                        set app $node_to_schedule
+                        lappend app [expr {$latency + $fu_delay -1}]
+                        lappend node_end_time $app
+
+                        # upgrade future occurency of fu
+                        set k 1
+                        while {$k < $fu_delay} {
+                            set time [expr {$latency+$k}]
+
+                            # check avaiable resources
+                            set avaiable_resources_1 [lindex $resources_cnt $time]
+                            if { [string length $avaiable_resources_1] == 0} {
+                                # puts "allocate new for future"
+                                lappend resources_cnt $res_info
+                                # set avaiable_resources_1 [lindex $resources_cnt $time]
+                                set avaiable_resources_1 $res_info
+                            }
+
+                            set occurency_future [lindex [lindex $avaiable_resources_1 $position] 1] ; # occurency of fu
+                            incr occurency_future -1 ; #decrement occurency
+
+                            set app $fu
+                            lappend app $occurency_future
+                            set avaiable_resources_1 [lreplace $avaiable_resources_1 $position $position $app]
+                            # puts "after res. av.(time $time): $avaiable_resources_1"
+                            set resources_cnt [lreplace $resources_cnt $time $time $avaiable_resources_1]
+
+                            incr k 1
+                        }
+
+                        incr occurency -1
+
+                        # upgrade current occurency of fu
+                        set app $fu
+                        lappend app $occurency
+                        set avaiable_resources [lreplace $avaiable_resources $position $position $app]
+                        set resources_cnt [lreplace $resources_cnt $latency $latency $avaiable_resources]
+
+                        # if empty list of node to schedule
+                        if {[llength $nodes_to_schedule] == 0} {
+                            break
+                        }
+                    }  
+
+                    # if empty list of node to schedule
+                    if {[llength $nodes_to_schedule] == 0} {
+                        break
+                    }                 
+                }
+            } 
+
+            set opeation_group [lreplace $opeation_group 2 2 $all_nodes]
+            set opeation_group [lreplace $opeation_group 3 3 $nodes_to_schedule]
+            set operations [lreplace $operations $j $j $opeation_group]
+
+            # check if all nodes have been scheduled
+            if {[llength $all_nodes] > 0} {
+                set flag_final 0
+                # puts "$latency - $operation - $all_nodes - $nodes_to_schedule"
+            }
+        }
+
+        if {$flag_final == 1} { 
+            set done 0 
+        } else {
+            incr latency
+        }
+
+    }
+    
+    set latency [llength $resources_cnt]
+
+    set myList [list]
+    lappend myList $node_start_time
+    lappend myList $node_fu
+    lappend myList $latency
+    return $myList
+
+}
 
 proc brave_opt args {
   array set options {-total_area 0}
@@ -32,24 +367,38 @@ proc brave_opt args {
   #-------------------------------------------------------------------------
   #count of all the operation and preparation of the list of fu for each operation
   #--------------------------------PRIMA PARTE------------------------------
+  set sort_operation [list]
   foreach element $nodes {
     # take from the nodes the operation
     set node_operation [get_attribute $element operation]
     # if lsearch dont match the operation return -1
     # take all the fu that perform that operation
-    set index [lsearch $list_node_op $node_operation]
+    set index [lsearch -index 1 $sort_operation $node_operation]
     if { $index == -1 } {
       #count of operation
-      lappend count_operation 1
-      lappend list_node_op $node_operation
+      set app 1
+      lappend app $node_operation
+      lappend sort_operation $app
     } else {
-        set dec [lindex $count_operation $index ]
+        set op_dec [lindex $sort_operation $index]
+        set dec [lindex $op_dec 0]
         incr dec
-        set count_operation [lreplace $count_operation $index $index $dec]
+        set op_dec [lreplace $op_dec 0 0 $dec]
+        set sort_operation [lreplace $sort_operation $index $index $op_dec]
     }
     incr tot_operations
   }
+  
+  set sort_operation [lsort -index 0  -integer  $sort_operation]
+  
+  foreach var $sort_operation {
+    lappend count_operation [lindex $var 0]
+    lappend list_node_op [lindex $var 1]
+  }
 
+  # puts $count_operation
+  # puts $list_node_op
+  
   # puts "Total operation: $tot_operations"
 
   #----------------------------FINE PRIMA PARTE---------------------------------
@@ -57,35 +406,57 @@ proc brave_opt args {
   #fu_operation contain all the fu for that operation 
   #------------------------ SECONDA PARTE----------------------------------
   set comb_general [list]
+  set tot_comb 1
   #iterate for each operation
   for {set i 0} {$i < [llength $count_operation]} {incr i} {
     set final 0
     set vett [list]
-    set fus [get_lib_fus_from_op [lindex $list_node_op $i]]
+    set op [lindex $list_node_op $i]
+    set fus [get_lib_fus_from_op $op]
     set leng [llength $fus]
+    # total amount of operation
     set count_operation_operation [lindex $count_operation $i]
-    #max area for each operation
-    set memory_needed [expr {(($total_area+0.0)/$tot_operations)*$count_operation_operation}]
-    # puts "$fus - $leng => $count_operation_operation ($memory_needed on $total_area)"
+    # puts ""
+    # puts "$op - $count_operation_operation"
 
     #vector of tot zeros, one for each fu
     set fus_area [list]
+    set area_avg 0
+    set v 0
     foreach fu $fus {
       #set the vector that we use to make the combination
       lappend vett 0
-
+      
       set fu_area [get_attribute $fu area]
       set app [list]
       lappend app $fu
       lappend app $fu_area
       lappend fus_area $app
+
+      incr area_avg $fu_area
+      incr v
     }
 		set min_fu_area [lindex [lindex $fus_area end] 1]
-		# puts "$fus_area => min($min_fu_area)"
+    set area_avg [expr {$area_avg/$v}]
+		# puts "$fus_area => min($min_fu_area) avg ($area_avg)"
+    if {$count_operation_operation <= 5} {
+      set memory_needed_max [expr [lindex [lindex $fus_area 0] 1]*$count_operation_operation]
+    } else {
+      set memory_needed_max [expr {$area_avg*$count_operation_operation*$count_operation_operation/$tot_operations*4}]
+    }
+
+    if {$memory_needed_max == 0 || $memory_needed_max <= $min_fu_area} {
+      set memory_needed_max [lindex [lindex $fus_area 0] 1]
+    } elseif {$memory_needed_max > $total_area} {
+      set memory_needed_max [expr {0.75*$total_area}]
+    } 
+
+    # puts "$fus - $leng => $count_operation_operation ($memory_needed_max on $total_area)"
 
     set comb_operation [list]
     set comb_unique [list]
     set area_comb 0
+    set occ_comb 0
 
     # set comb_unique
     foreach fu $fus_area {
@@ -93,83 +464,113 @@ proc brave_opt args {
       lappend app [lindex $fu 0]
       lappend app 0
       lappend comb_unique $app
+    } 
+  
+    set start [expr {($count_operation_operation +0.0)/(($total_area/$memory_needed_max)+1)/($tot_operations*$area_avg/$total_area*3)}]    
+    if {$start < 1.0 || $start > $count_operation_operation} { set start 1 }
+    set end [expr {$start*4}]
+    if {$end > [expr {0.8*$count_operation_operation}]} { 
+      set end [expr {0.8*$count_operation_operation}]
+      if {$end < $start} { set end $start }
     }
+    # puts "$start to $end"
+    for {set j $start} {$j <= $end} {incr j} {
+      set j [expr int($j)]
+      set done 0
+      # finish of the combination when the last element reach max area delay
+      while { $done == 0 } {
+        set index 0
+        set flag 0
 
-    set done 0
-    # finish of the combination when the last element reach max area delay
-    while { $done == 0 } {
-      set index 0
-      set flag 0
-
-      while { $flag == 0 } {
-        set fu_area_comb [lindex [lindex $fus_area $index] 1]
-        # aggiorna le aree dentro
-        if { [expr {$fu_area_comb+$area_comb}] <= $memory_needed } {
-          set comb [lindex $comb_unique $index]
-          set occ [lindex $comb 1]
-
-          set app [list]
-          lappend app [lindex $comb 0]
-          lappend app [expr {$occ+1} ]
-          set comb $app
-          set comb_unique [lreplace $comb_unique $index $index $comb]
-          
-          set area_comb [expr {$area_comb+$fu_area_comb}]
-
-					set flag 1
-        } else {
-          set comb [lindex $comb_unique $index]
-          set occ [lindex $comb 1]
-          # set fu_area_tot [expr {$occ*$fu_area_comb}]
-          if {$occ > 0} {
-						# area che libero
-            set fu_area_tot [expr {$occ*$fu_area_comb}]
+        while { $flag == 0 } {
+          set fu_area_comb [lindex [lindex $fus_area $index] 1]
+          # aggiorna le aree dentro
+          if { [expr {$fu_area_comb+$area_comb}] <= $memory_needed_max && $occ_comb < $j} {
+            set comb [lindex $comb_unique $index]
+            set occ [lindex $comb 1]
 
             set app [list]
             lappend app [lindex $comb 0]
-            lappend app 0
+            lappend app [expr {$occ+1} ]
             set comb $app
             set comb_unique [lreplace $comb_unique $index $index $comb]
-            set area_comb [expr {$area_comb-$fu_area_tot}]
+            
+            set area_comb [expr {$area_comb+$fu_area_comb}]
+            incr occ_comb
+
+            set flag 1
+          } else {
+            set comb [lindex $comb_unique $index]
+            set occ [lindex $comb 1]
+            # set fu_area_tot [expr {$occ*$fu_area_comb}]
+            if {$occ > 0} {
+              # area che libero
+              set fu_area_tot [expr {$occ*$fu_area_comb}]
+
+              set app [list]
+              lappend app [lindex $comb 0]
+              lappend app 0
+              set comb $app
+              set comb_unique [lreplace $comb_unique $index $index $comb]
+
+              set area_comb [expr {$area_comb-$fu_area_tot}]
+              incr occ_comb [expr -$occ]
+            }
+
+            incr index ; #diverso
           }
 
-          incr index ; #diverso
+          if {$index == $leng} {
+            set flag 1 
+            set done 1
+          }
         }
 
-        if {$index == $leng} {
-          set flag 1 
-          set done 1
+        if { [expr {$memory_needed_max-$area_comb}] < $min_fu_area || $occ_comb == $j} {
+          incr final
+          set app $area_comb
+          lappend app $comb_unique
+          # puts "$app - $final -$j - $occ_comb - $memory_needed_max - $min_fu_area "
+          lappend comb_operation $app
         }
       }
-
-			if { [expr {$memory_needed-$area_comb}] < $min_fu_area } {
-				incr final
-				# puts "$comb_unique - $area_comb - $final"
-				lappend comb_operation $comb_unique
-			}
     }
 
     #set all the combination in a variable
-    lappend comb_general $comb_operation
+    lappend comb_general [lsort -index 0 -integer -dec $comb_operation]
+    # foreach comb [lsort -index 0 -integer -dec $comb_operation] {
+    #   puts $comb
+    # }
     # puts "Tot combinazioni: $final"
+    set tot_comb [expr {$tot_comb*$final}]
   }
+
+  # puts "Combinazioni totali: $tot_comb"
 
 #------------------------------FINE SECONDA PARTE-----------------------------------------------
 #OTTENGO UNA LISTA DI ELEMENTI, OGNI ELEMENTO è UNA LISTA DI COMBINAZIONI PER OGNI OPERAZIONE
-#comb_general contiene tutte le combinazioni per ogni operazione, adesso bisogna combinare questi elementi di ogni lista 
-#comb general è una lista di liste di combinazioni per ogni operazione
-#------------------------------ INIZIO TERZA PARTE-------------------------------------------
+#comb_general contiene tutte le combinazioni per ogni operazione, adesso bisogna combinare questi 
+  set memory_needed_max_tot 0
+  foreach max_comb $comb_general {
+    set area_max_comb [lindex [lindex $max_comb 0] 0]
+    set memory_needed_max_tot [expr {$memory_needed_max_tot+$area_max_comb}]
+    # puts $area_max_comb
+  }
+  # puts $memory_needed_max_tot
+
+  if {$total_area > $memory_needed_max_tot} {
+    set total_area [expr $memory_needed_max_tot*0.90]
+  }
+  # puts $total_area 
   #  set the index of the operand
   set vett [list]
   set verif_comb [list]
   set lung [llength $comb_general]
   #create the instance of comb to verify verif_comb
-  for {set i 0} {$i < $lung} {incr i} {
-    if {$i == 0} {
-      lappend vett -1
-    } else {
-      lappend vett 0
-    }
+  lappend vett -1
+  lappend verif_comb [lindex [lindex $comb_general 0] 0]
+  for {set i 1} {$i < $lung} {incr i} {
+    lappend vett 0
     lappend verif_comb [lindex [lindex $comb_general $i] 0]
     # puts [lindex $comb_general $i]
     # puts [llength [lindex $comb_general $i]]
@@ -179,7 +580,9 @@ proc brave_opt args {
   #the vector begin with 000--000-1
   set flag 0
   set final 0
-  
+  set value 30000
+  set same [expr 0.0]
+
   set best_latency 10000000
   set return_value [list]
 
@@ -191,18 +594,18 @@ proc brave_opt args {
         incr index
         if {$index == [llength $comb_general]} {
           set flag 1 
+          break
         }
     }
 
+    
     # if {[lindex $vett $index] == 50} {break;}
-
     if {$flag == 0} {
       #vett[index]++
       set tmp [lindex $vett $index]
       # upgrade
       incr tmp
       set vett [lreplace $vett $index $index $tmp]
-      
       for {set i [expr $index-1]} {$i >= 0} {incr i -1} {
          set vett [lreplace $vett $i $i 0]
          set verif_comb [lreplace $verif_comb $i $i [lindex [lindex $comb_general $i] 0]]
@@ -211,34 +614,74 @@ proc brave_opt args {
       
       #VERIFICA!!!
       set fu_comb [list]
+      set area 0
       foreach operation $verif_comb {
+        # puts "op $operation"
+        set area_seq  [lindex $operation 0]
+        set operation [lindex $operation 1]
         foreach fu $operation {
           set occ [lindex $fu 1]
           if {$occ > 0} {
             lappend fu_comb $fu
           } 
         }
-      }
-      incr final
 
-      set list_mlac_result [list_mlac $fu_comb $nodes_mobility]
-      set latency [lindex $list_mlac_result 2]
-      if {$latency < $best_latency} {
-        # puts ""
-        # puts "OLD ($best_latency): $best_res_assign"
-        # puts "NEW ($latency): $fu_comb"
-        set best_res_assign $fu_comb
-        set best_latency $latency
-        set return_value $list_mlac_result
+        incr area $area_seq
       }
 
-      # puts "$fu_comb - $best_latency vs $latency"
+      # limite area superiore e inferiore
+
+      # puts "$area - $total_area"
+      if { $area  < [expr {$total_area*0.95}] } {
+        for {set i [expr $index]} {$i >= 0} {incr i -1} {
+         set tmp [expr {[llength [lindex $comb_general $i]]-1}]
+         set vett [lreplace $vett $i $i $tmp]
+         # set verif_comb [lreplace $verif_comb $i $i [lindex [lindex $comb_general $i] tmp]]
+        }
+
+        set same [expr {$same+0.1}]
+        if { $same >= $value } {
+          set flag 1
+        }
+      } elseif { $area <= $total_area } {
+        
+        incr final
+        set list_mlac_result [list_mlac $fu_comb $nodes_mobility]
+        set latency [lindex $list_mlac_result 2]
+        if {$latency < $best_latency} {
+          # puts ""
+          # puts "OLD ($best_latency): $best_res_assign"
+          # puts "NEW ($latency): $fu_comb"
+          # puts "vett: $vett"
+          # puts $value
+          set best_res_assign $fu_comb
+          set best_latency $latency
+          set return_value $list_mlac_result
+          set value [expr {$value-(5*$same)}]
+          set same [expr 0.0]
+        } else {
+          set same [expr {$same+1.0}]
+          if { $same >= $value } {
+            set flag 1
+          }
+        }
+
+      } else {
+        set same [expr {$same+0.1}]
+        if { $same >= $value } {
+          set flag 1
+        }
+      }
       
+      # puts "$same - $value"
+      # puts "$fu_comb - $area - $final"      
     }
   }
   #-------------------------------FINE TERZA PARTE---------------------------------
 
+  # puts "Combination used $final on $tot_comb"
   set return_value [lreplace $return_value end end $best_res_assign]
+  lappend return_value $best_latency
 
 	return $return_value
 }
