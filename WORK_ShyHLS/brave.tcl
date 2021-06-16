@@ -134,8 +134,9 @@ proc list_mlac {res_info nodes_mobility fus_delay} {
             set fu [lindex [lindex $operations $position] 1]
             # puts "before $fu"
             set app $op
-            set app_fu $operation
-            lappend app_fu [get_attribute $operation delay]
+            set delay [lindex [lindex $fus_delay [lsearch -index 0 $fus_delay $operation]] 1]
+            # puts $delay
+            set app_fu "{$operation $delay}"
             lappend fu $app_fu
             lappend app $fu
             set operations [lreplace $operations $position $position $app]
@@ -538,7 +539,7 @@ proc brave_opt args {
     }
     # min area for combination 
     set min_memory [expr {$memory_needed_max/3*2}]
-    if {$min_memory < $min_fu_area || [expr $max_fu_area-$min_fu_area] > $min_fu_area} {
+    if {$min_memory < $min_fu_area || [expr $max_fu_area-$min_fu_area] > $min_fu_area || [expr {$min_memory/$count_operation_operation}] } {
       set min_memory $min_fu_area
     }
     # puts "$fus - $leng => $count_operation_operation ($min_memory-$memory_needed_max on $total_area)"
@@ -639,16 +640,16 @@ proc brave_opt args {
 #---------------------------------- TERZA PARTE --------------------------------------------------
   # calculated wich is the max value of area that can be reach
   set memory_needed_max_tot 0
-  # set memory_min 0
+  set memory_min 0
   foreach max_comb $comb_general {
     set area_max_comb [lindex [lindex $max_comb 0] 0]
-    # set area_min_comb  [lindex [lindex $max_comb end] 0]
+    set area_min_comb  [lindex [lindex $max_comb end] 0]
     set memory_needed_max_tot [expr {$memory_needed_max_tot+$area_max_comb}]
-    # set memory_min [expr {$memory_min+$area_min_comb}]
+    set memory_min [expr {$memory_min+$area_min_comb}]
   }
 
   if {$total_area > $memory_needed_max_tot} {
-    set total_area [expr $memory_needed_max_tot*0.90]
+    set total_area $memory_needed_max_tot
   }
 
   # puts $total_area 
@@ -658,17 +659,13 @@ proc brave_opt args {
   
   set flag_1 1
   # set final 0
-  # max reach before to exit from cycle
-  set value [expr {40000*($total_area/1000.00)}]
-  if {$value > 40000} { 
-    set value 40000 
-  } elseif { $value < 20000 } {
-    set value 20000 
-  }
-  # puts $value
 
-  # set low_boundary [expr int($total_area*0.95)] 
-  set low_boundary [expr {int($total_area*0.95)}] 
+  set remove [expr {$total_area/1000.00*5000}]
+  if {$remove < 1000 } {
+    set remove 1000
+  }
+  set percentage 0.99
+  set low_boundary [expr {int($total_area*$percentage)}] 
   
   # puts $memory_needed_max_tot
   # puts $memory_min
@@ -678,7 +675,18 @@ proc brave_opt args {
   set return_value [list]
 
   while { $flag_1 } {
-    # puts "LOW BOUNDARY: $low_boundary"
+    puts ""
+    puts ""
+    puts "LOW BOUNDARY: $low_boundary"
+    puts "TOTAL AREA: $total_area"
+    # max reach before to exit from cycle
+    set value [expr {40000*($total_area/1000.00)}]
+    if {$value > 40000} { 
+      set value 40000 
+    } elseif { $value < 20000 } {
+      set value 20000 
+    }
+    # puts $value
 
     set flag 1
     set same [expr 0.0]
@@ -739,13 +747,12 @@ proc brave_opt args {
         }
 
         # limite area superiore e inferiore
-
         # puts "$area vs $total_area"
         if { $area  < $low_boundary} {
           for {set i [expr $index]} {$i >= 0} {incr i -1} {
-          set tmp [expr {[llength [lindex $comb_general $i]]-1}]
-          set vett [lreplace $vett $i $i $tmp]
-          # set verif_comb [lreplace $verif_comb $i $i [lindex [lindex $comb_general $i] tmp]]
+            set tmp [expr {[llength [lindex $comb_general $i]]-1}]
+            set vett [lreplace $vett $i $i $tmp]
+            # set verif_comb [lreplace $verif_comb $i $i [lindex [lindex $comb_general $i] tmp]]
           }
 
           set same [expr {$same+0.3}]
@@ -755,15 +762,16 @@ proc brave_opt args {
           set list_mlac_result [list_mlac $fu_comb $nodes_mobility $fus_delay_tot]
           set latency [lindex $list_mlac_result 2]
           if { $latency < $best_latency } {
-            # puts ""
-            # puts "OLD ($best_latency): $best_res_assign"
-            # puts "NEW ($latency): $fu_comb"
-            # puts "vett: $vett"
+            puts ""
+            puts "OLD ($best_latency): $best_res_assign"
+            puts "NEW ($latency): $fu_comb"
+            puts "vett: $vett"
             # puts $value
+            puts "$area vs $total_area"
             set best_res_assign $fu_comb
             set best_latency $latency
             set return_value $list_mlac_result
-            set value [expr {$value-($total_area/1000.00*5000)}]
+            set value [expr {$value-$remove}]
             set same [expr 0.0]
           } else {
             set same [expr {$same+1.0}]
@@ -781,7 +789,10 @@ proc brave_opt args {
         # puts "$same - $value - $fu_comb - $area - $final - $vett - $best_latency"      
       }
     }
-    set low_boundary [expr {$low_boundary-1}]
+
+    set percentage [expr {$percentage-0.01}]
+    set total_area $low_boundary
+    set low_boundary [expr {int($total_area*$percentage)}] 
   }
   #-------------------------------FINE TERZA PARTE---------------------------------
 
