@@ -10,13 +10,13 @@ proc list_mlac {res_info nodes_mobility} {
     # list of node and assign fu: <node, fu>
     set node_fu [list]
     # latency total
-    set latency 0
+    set latency 1
 
     # WORKING PARAMETER
-    # use to see amount of resources avaiable
-    set resources_cnt [list]
 
     # PREEPARING PHASE
+    set resources_cnt [list]
+    lappend resources_cnt $res_info
 
     # group fus for operation
     set operations [list]
@@ -39,7 +39,7 @@ proc list_mlac {res_info nodes_mobility} {
     }
     puts $operations
     # group each node for type of operation
-    foreach node [get_nodes] {
+    foreach node [get_sorted_nodes] {
         set op [get_attribute $node operation]
         set position [lsearch -index 0 $operations $op]
         set operation [lindex $operations $position]
@@ -56,7 +56,7 @@ proc list_mlac {res_info nodes_mobility} {
             set delay_fu [get_attribute $fu delay]
         }
         set all_node [lindex $cell 2]
-        # puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu - NODE: $all_node"
+        puts "OPERATION: $op - FU: $fu - DELAY: $delay_fu - NODE: $all_node"
     }
 
     set done 1
@@ -93,7 +93,7 @@ proc list_mlac {res_info nodes_mobility} {
                         break
                     } else {
                         set parent_end_time [lindex [lindex $node_end_time [lsearch -index 0 $node_end_time $parent]] 1]
-                        if {$parent_end_time >= $latency} {
+                        if {$parent_end_time > $latency} {
                             # puts "for node $node ($operation) - $parent finish at $parent_end_time ($latency)"
                             # means that some parents must be finish its operation
                             set flag 0
@@ -118,11 +118,12 @@ proc list_mlac {res_info nodes_mobility} {
 
             # order nodes according mobility value of each node
             if {[llength $nodes_to_schedule] > 0} {
-                # puts "NODE ($operation): $nodes_to_schedule - ($latency)"
-                set nodes_to_schedule [lsort -index 1 -integer -decreasing $nodes_to_schedule]
+                set nodes_to_schedule [lsort -index 1 -integer $nodes_to_schedule]
+                #puts "NODE ($operation): $nodes_to_schedule - ($latency)"
 
                 # check avaiable resources
                 set avaiable_resources [lindex $resources_cnt $latency]
+                # puts $avaiable_resources
                 if { [string length $avaiable_resources] == 0} {
                     lappend resources_cnt $res_info
                     set avaiable_resources $res_info
@@ -132,7 +133,6 @@ proc list_mlac {res_info nodes_mobility} {
 
                 # all fu dedicated avaiable in that moment
                 foreach fu $fus {
-
                     set position [lsearch -index 0 $avaiable_resources $fu] ; # position of fu
                     set occurency [lindex [lindex $avaiable_resources $position] 1] ; # occurency of fu
                     set fu_delay [get_attribute $fu delay]
@@ -145,7 +145,7 @@ proc list_mlac {res_info nodes_mobility} {
                         # puts "  remove $node_to_schedule"
                         set nodes_to_schedule [lreplace $nodes_to_schedule 0 0]
                         # puts "node and mobility after: $node_and_mobility"
-                        # puts "node to schedule: $node_to_schedule"
+                        #puts "node to schedule: $node_to_schedule at $latency"
 
                         # assign start time to node
                         set app $node_to_schedule
@@ -159,7 +159,7 @@ proc list_mlac {res_info nodes_mobility} {
 
                         # determine end time
                         set app $node_to_schedule
-                        lappend app [expr {$latency + $fu_delay -1}]
+                        lappend app [expr {$latency + $fu_delay}]
                         lappend node_end_time $app
 
                         # upgrade future occurency of fu
@@ -169,7 +169,7 @@ proc list_mlac {res_info nodes_mobility} {
 
                             # check avaiable resources
                             set avaiable_resources_1 [lindex $resources_cnt $time]
-                            if { [string length $avaiable_resources_1] == 0} {
+                            while { [string length $avaiable_resources_1] == 0} {
                                 # puts "allocate new for future"
                                 lappend resources_cnt $res_info
                                 # set avaiable_resources_1 [lindex $resources_cnt $time]
@@ -207,7 +207,15 @@ proc list_mlac {res_info nodes_mobility} {
                         break
                     }                 
                 }
-            } 
+            } else {
+                # check avaiable resources
+                set avaiable_resources [lindex $resources_cnt $latency]
+                if { [string length $avaiable_resources] == 0} {
+                    lappend resources_cnt $res_info
+                    # puts "Allocate new: $avaiable_resources"
+                    # puts "$latency vs [llength $resources_cnt]"
+                }
+            }
 
             set opeation_group [lreplace $opeation_group 2 2 $all_nodes]
             set opeation_group [lreplace $opeation_group 3 3 $nodes_to_schedule]

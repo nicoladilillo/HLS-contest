@@ -675,10 +675,10 @@ proc brave_opt args {
   set return_value [list]
 
   while { $flag_1 } {
-    puts ""
-    puts ""
-    puts "LOW BOUNDARY: $low_boundary"
-    puts "TOTAL AREA: $total_area"
+    # puts ""
+    # puts ""
+    # puts "LOW BOUNDARY: $low_boundary"
+    # puts "TOTAL AREA: $total_area"
     # max reach before to exit from cycle
     set value [expr {40000*($total_area/1000.00)}]
     if {$value > 40000} { 
@@ -762,12 +762,12 @@ proc brave_opt args {
           set list_mlac_result [list_mlac $fu_comb $nodes_mobility $fus_delay_tot]
           set latency [lindex $list_mlac_result 2]
           if { $latency < $best_latency } {
-            puts ""
-            puts "OLD ($best_latency): $best_res_assign"
-            puts "NEW ($latency): $fu_comb"
-            puts "vett: $vett"
+            # puts ""
+            # puts "OLD ($best_latency): $best_res_assign"
+            # puts "NEW ($latency): $fu_comb"
+            # puts "vett: $vett"
             # puts $value
-            puts "$area vs $total_area"
+            # puts "$area vs $total_area"
             set best_res_assign $fu_comb
             set best_latency $latency
             set return_value $list_mlac_result

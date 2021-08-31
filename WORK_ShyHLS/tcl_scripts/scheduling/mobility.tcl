@@ -30,6 +30,7 @@ proc mobility {} {
     set mobility_result [list]
     foreach pair $asap_schedule {
         set node_id [lindex $pair 0]
+        set op [get_attribute $node_id operation]
         set asap_time [lindex $pair 1]
         set position [lsearch -index 0 $alap_schedule $node_id]
         set alap_time [lindex [lindex $alap_schedule $position] 1]
@@ -38,7 +39,7 @@ proc mobility {} {
         lappend app $node_id
         lappend app $mobility
         lappend mobility_result $app
-        # puts "$node_id @mobility $mobility = $alap_time - $asap_time"
+        puts "$node_id ($op) @mobility $mobility = $alap_time - $asap_time"
     }
 
     return $mobility_result
